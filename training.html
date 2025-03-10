@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Training Registration</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: url('') no-repeat center center/cover;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;  
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+            background: rgba(255, 255, 255, 0.9);
+
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            color: #333;
+        }
+        h1, h2 {
+            color: #ff5e62;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        select, input {
+            border: 2px solid #ff5e62;
+            background: #fff;
+        }
+        button {
+            background: #ff5e62;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #e04c54;
+        }
+        #timerSection {
+            display: none;
+            font-size: 18px;
+            font-weight: bold;
+            color: #d9534f;
+        }
+        img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Spark Training</h1>
+        <img src="animation1.jpg" alt="Training Illustration">
+        <p>We offer professional training on:</p>
+        <ul>
+            <li>Logo Designing</li>
+            <li>Website Designing</li>
+            <li>Storyboard Animation</li>
+            <li>Creating Images using AI</li>
+            <li>Creating Videos using AI</li>
+        </ul>
+        
+        <h2>Choose Your Payment Plan</h2>
+        <select id="paymentPlan">
+            <option value="full">Full Payment</option>
+            <option value="installment">Installment Payment</option>
+        </select>
+        
+        <div id="paymentDetails">
+            <p><strong>Full Payment:</strong> Nigerians (₦3,000), Ghanaians (₵70), Others ($8)</p>
+            <p><strong>Installmental Payment:</strong> Nigerians (₦4,000), Ghanaians (₵80), Others ($10)</p>
+        </div>
+        
+        <h2>Make Payment</h2>
+        <p>Nigerians: Transfer to <strong>8158549310 (Emmanuel Oluwasegun Taiwo) Palmpay</strong> or <strong>3100693195 (Samuel Taiwo) Polaris Bank</strong> </p>
+        <p>Ghanaians:<strong> 599884632 Charity Ahor Mtn Momo</strong> or <strong> 0206174854 Isaac Etwan Telecel </strong></p>
+        <p>Others: Message us for details</p>
+        
+        <button id="payNow">Are you paying now?</button>
+        
+        <div id="timerSection">
+            <h3>Time Remaining: <span id="timer">30:00</span></h3>
+        </div>
+        
+        <h2>Upload Proof of Payment</h2>
+        <input type="text" id="customerName" placeholder="Enter your name">
+        <input type="file" id="paymentProof" accept="image/jpeg">
+        <button id="sendToWhatsApp">Send to WhatsApp</button>
+    </div>
+
+    <script>
+        document.getElementById('payNow').addEventListener('click', function() {
+            document.getElementById('timerSection').style.display = 'block';
+            let timeLeft = 30 * 60;
+            const timerElement = document.getElementById('timer');
+            
+            const countdown = setInterval(() => {
+                let minutes = Math.floor(timeLeft / 60);
+                let seconds = timeLeft % 60;
+                timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                timeLeft--;
+                if (timeLeft < 0) {
+                    clearInterval(countdown);
+                    timerElement.textContent = "Time expired!";
+                }
+            }, 1000);
+        });
+        
+        document.getElementById('sendToWhatsApp').addEventListener('click', function() {
+            let name = document.getElementById('customerName').value;
+            if (name === '') {
+                alert("Please enter your name");
+                return;
+            }
+            let message = `Hey Spark, confirm my payment. Name: ${name}`;
+            let whatsappLink = `https://wa.me/YOUR_NUMBER?text=${encodeURIComponent(message)}`;
+            window.open(whatsappLink, '_blank');
+        });
+    </script>
+</body>
+</html>
