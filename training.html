@@ -81,13 +81,13 @@
         
         <h2>Choose Your Payment Plan</h2>
         <select id="paymentPlan">
-            <option value="full">Full Payment</option>
-            <option value="installment">Installment Payment</option>
+            <option value="full" id="full">Full Payment</option>
+            <option value="installment" id="installment">Installment Payment</option>
         </select>
         
         <div id="paymentDetails">
-            <p><strong>Full Payment:</strong> Nigerians (₦3,000), Ghanaians (₵70), Others ($8)</p>
-            <p><strong>Installmental Payment:</strong> Nigerians (₦4,000), Ghanaians (₵80), Others ($10)</p>
+            <p id="full_p"><strong>Full Payment:</strong> Nigerians (₦3,000), Ghanaians (₵70), Others ($8)</p>
+            <p id="installment_p"><strong>Installmental Payment:</strong> Nigerians (₦4,000), Ghanaians (₵80), Others ($10)</p>
         </div>
         
         <h2>Make Payment</h2>
@@ -108,6 +108,24 @@
     </div>
 
     <script>
+        document.getElementById('installment_p').style.display = 'none';
+
+        document.getElementById('full_p').style.display = 'grid';
+
+        const paymentPlan = document.getElementById('paymentPlan');
+       paymentPlan.addEventListener('change', function(){
+            
+            if(paymentPlan.value === 'installment'){
+                document.getElementById('installment_p').style.display = 'grid';
+                document.getElementById('full_p').style.display = 'none';
+
+            }
+            if(paymentPlan.value === 'full'){
+                document.getElementById('installment_p').style.display = 'none';
+                document.getElementById('full_p').style.display = 'grid';
+                
+            }
+        })
         document.getElementById('payNow').addEventListener('click', function() {
             document.getElementById('timerSection').style.display = 'block';
             let timeLeft = 30 * 60;
@@ -132,7 +150,7 @@
                 return;
             }
             let message = `Hey Spark, confirm my payment. Name: ${name}`;
-            let whatsappLink = `https://wa.me/YOUR_NUMBER?text=${encodeURIComponent(message)}`;
+            let whatsappLink = `https://wa.me/2349052306058?text=${encodeURIComponent(message)}`;
             window.open(whatsappLink, '_blank');
         });
     </script>
