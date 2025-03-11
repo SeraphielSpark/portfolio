@@ -4,155 +4,262 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Professional Training Registration</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Poppins', sans-serif;
-            background: url('') no-repeat center center/cover;
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: center;  
+            justify-content: center;
             align-items: center;
             min-height: 100vh;
-            color: white;
-            background: rgba(255, 255, 255, 0.9);
-
+            background: #f0f2f5;
         }
+
         .container {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
             width: 90%;
             max-width: 500px;
-            text-align: center;
             color: #333;
         }
+
         h1, h2 {
             color: #ff5e62;
+            margin: 1.5rem 0;
         }
-        select, input, button {
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .payment-method {
+            padding: 1.2rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .payment-method.active {
+            border-color: #ff5e62;
+            background: #fff5f5;
+        }
+
+        .payment-method i {
+            font-size: 1.5rem;
+        }
+
+        .payment-content {
+            display: none;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .payment-content.active {
+            display: block;
+        }
+
+        .bank-details {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+        }
+
+        input, select, button {
             width: 100%;
             padding: 12px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
+            margin: 0.8rem 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
         }
-        select, input {
-            border: 2px solid #ff5e62;
-            background: #fff;
-        }
+
         button {
             background: #ff5e62;
             color: white;
-            font-weight: bold;
+            font-weight: 600;
+            border: none;
             cursor: pointer;
-            transition: 0.3s;
         }
+
         button:hover {
-            background: #e04c54;
+            background: #ff4757;
         }
+
         #timerSection {
             display: none;
-            font-size: 18px;
-            font-weight: bold;
-            color: #d9534f;
+            text-align: center;
+            font-size: 1.2rem;
+            color: #ff5e62;
+            margin: 1.5rem 0;
         }
-        img {
-            width: 100%;
-            border-radius: 10px;
-            margin-bottom: 10px;
+
+        ul {
+            text-align: left;
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin: 0.5rem 0;
+            color: #555;
         }
     </style>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>Welcome to Spark Training</h1>
-        <img src="animation1.jpg" alt="Training Illustration">
-        <p>We offer professional training on:</p>
-        <ul>
-            <li>Logo Designing</li>
-            <li>Website Designing</li>
-            <li>Storyboard Animation</li>
-            <li>Creating Images using AI</li>
-            <li>Creating Videos using AI</li>
-        </ul>
         
-        <h2>Choose Your Payment Plan</h2>
-        <select id="paymentPlan">
-            <option value="full" id="full">Full Payment</option>
-            <option value="installment" id="installment">Installment Payment</option>
-        </select>
-        
-        <div id="paymentDetails">
-            <p id="full_p"><strong>Full Payment:</strong> Nigerians (₦3,000), Ghanaians (₵70), Others ($8)</p>
-            <p id="installment_p"><strong>Installmental Payment:</strong> Nigerians (₦4,000), Ghanaians (₵80), Others ($10)</p>
+        <div class="course-list">
+            <ul>
+                <li>Logo Designing</li>
+                <li>Website Designing</li>
+                <li>Storyboard Animation</li>
+                <li>Creating Images using AI</li>
+                <li>Creating Videos using AI</li>
+            </ul>
         </div>
-        
-        <h2>Make Payment</h2>
-        <p>Nigerians: Transfer to <strong>8158549310 (Emmanuel Oluwasegun Taiwo) Palmpay</strong> or <strong>3100693195 (Samuel Taiwo) Polaris Bank</strong> </p>
-        <p>Ghanaians:<strong> 599884632 Charity Ahor Mtn Momo</strong> or <strong> 0206174854 Isaac Etwan Telecel </strong></p>
-        <p>Others: Message us for details</p>
-        
-        <button id="payNow">Are you paying now?</button>
-        
+
+        <h2>Select Payment Method</h2>
+        <div class="payment-methods">
+            <div class="payment-method" onclick="selectPayment('paystack')">
+                <i class="fas fa-credit-card paystack"></i>
+                <span>Paystack</span>
+            </div>
+            <div class="payment-method" onclick="selectPayment('bank')">
+                <i class="fas fa-university"></i>
+                <span>Bank Transfer</span>
+            </div>
+        </div>
+
+        <!-- Paystack Payment Content -->
+        <div id="paystackContent" class="payment-content">
+            <input type="email" id="email" placeholder="Enter your email" required>
+            <button onclick="processPaystackPayment()">Pay with Paystack</button>
+        </div>
+
+        <!-- Bank Transfer Content -->
+        <div id="bankContent" class="payment-content">
+            <div class="bank-details">
+                <h3>Nigerian Accounts</h3>
+                <p>Palmpay: 8158549310 (Emmanuel Oluwasegun Taiwo)</p>
+                <p>Polaris Bank: 3100693195 (Samuel Taiwo)</p>
+                
+                <h3>Ghanaian Accounts</h3>
+                <p>MTN Momo: 599884632 (Charity Ahor)</p>
+                <p>Telecel: 0206174854 (Isaac Etwan)</p>
+                
+                <h3>International Payments</h3>
+                <p>Contact us for international payment details</p>
+            </div>
+        </div>
+
         <div id="timerSection">
             <h3>Time Remaining: <span id="timer">30:00</span></h3>
         </div>
-        
-        <h2>Upload Proof of Payment</h2>
-        <input type="text" id="customerName" placeholder="Enter your name">
-        <input type="file" id="paymentProof" accept="image/jpeg">
-        <button id="sendToWhatsApp">Send to WhatsApp</button>
+
+        <h2>Payment Verification</h2>
+        <input type="text" id="fullName" placeholder="Your Full Name" required>
+        <input type="file" id="paymentProof" accept="image/*">
+        <button onclick="sendVerification()">Send Verification</button>
     </div>
 
     <script>
-        document.getElementById('installment_p').style.display = 'none';
+        let selectedPaymentMethod = null;
 
-        document.getElementById('full_p').style.display = 'grid';
-
-        const paymentPlan = document.getElementById('paymentPlan');
-       paymentPlan.addEventListener('change', function(){
+        function selectPayment(method) {
+            selectedPaymentMethod = method;
+            document.querySelectorAll('.payment-method').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.payment-content').forEach(el => el.classList.remove('active'));
             
-            if(paymentPlan.value === 'installment'){
-                document.getElementById('installment_p').style.display = 'grid';
-                document.getElementById('full_p').style.display = 'none';
+            event.currentTarget.classList.add('active');
+            document.getElementById(`${method}Content`).classList.add('active');
+        }
 
-            }
-            if(paymentPlan.value === 'full'){
-                document.getElementById('installment_p').style.display = 'none';
-                document.getElementById('full_p').style.display = 'grid';
-                
-            }
-        })
-        document.getElementById('payNow').addEventListener('click', function() {
-            document.getElementById('timerSection').style.display = 'block';
-            let timeLeft = 30 * 60;
-            const timerElement = document.getElementById('timer');
-            
-            const countdown = setInterval(() => {
-                let minutes = Math.floor(timeLeft / 60);
-                let seconds = timeLeft % 60;
-                timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                timeLeft--;
-                if (timeLeft < 0) {
-                    clearInterval(countdown);
-                    timerElement.textContent = "Time expired!";
-                }
-            }, 1000);
-        });
-        
-        document.getElementById('sendToWhatsApp').addEventListener('click', function() {
-            let name = document.getElementById('customerName').value;
-            if (name === '') {
-                alert("Please enter your name");
+        function processPaystackPayment() {
+            const email = document.getElementById('email').value;
+            if (!validateEmail(email)) {
+                alert('Please enter a valid email address');
                 return;
             }
-            let message = `Hey Spark, confirm my payment. Name: ${name}`;
-            let whatsappLink = `https://wa.me/2349052306058?text=${encodeURIComponent(message)}`;
+
+            const handler = PaystackPop.setup({
+                key: 'pk_live_5ea87c40566ac81e9a26bd33e5529f2e0b428f6d', // Replace with your key
+                email: email,
+                amount: 3000, // 3000 Naira in kobo
+                currency: 'NGN',
+                ref: ''+Math.floor(Math.random() * 1000000000),
+                callback: function(response) {
+                    alert('Payment complete! Reference: ' + response.reference);
+                },
+                onClose: function() {
+                    alert('Transaction cancelled');
+                }
+            });
+            handler.openIframe();
+        }
+
+        function sendVerification() {
+            const name = document.getElementById('fullName').value;
+            if (!name) {
+                alert('Please enter your full name');
+                return;
+            }
+
+            const message = `Payment Verification\nName: ${name}`;
+            const whatsappLink = `https://wa.me/2349052306058?text=${encodeURIComponent(message)}`;
             window.open(whatsappLink, '_blank');
+        }
+
+        function validateEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        // Timer functionality
+        document.getElementById('payNow').addEventListener('click', function() {
+            document.getElementById('timerSection').style.display = 'block';
+            startTimer(30 * 60);
         });
+
+        function startTimer(duration) {
+            let timer = duration, minutes, seconds;
+            const display = document.getElementById('timer');
+            
+            const interval = setInterval(() => {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    clearInterval(interval);
+                    display.textContent = "TIME EXPIRED";
+                }
+            }, 1000);
+        }
     </script>
 </body>
 </html>
