@@ -142,7 +142,7 @@
 
         <h2>Select Payment Method</h2>
         <div class="payment-methods">
-            <div class="payment-method" onclick="selectPayment('paystack')">
+            <div class="payment-method" onclick="selectPayment('paystack')" id="paystack">
                 <i class="fas fa-credit-card paystack"></i>
                 <span>Paystack</span>
             </div>
@@ -170,7 +170,7 @@
                 <p>Telecel: 0206174854 (Isaac Etwan)</p>
                 
                 <h3>International Payments</h3>
-                <p>Contact us for international payment details</p>
+                <p>Contact us for international payment details <a style="color: gray; " onclick="selectPayment('paystack')" href="#paystack">or click here to use paystack</a></p>
             </div>
         </div>
 
@@ -206,7 +206,7 @@
             const handler = PaystackPop.setup({
                 key: 'pk_live_5ea87c40566ac81e9a26bd33e5529f2e0b428f6d', // Replace with your key
                 email: email,
-                amount: 3000, // 3000 Naira in kobo
+                amount: 300000, // 3000 Naira in kobo
                 currency: 'NGN',
                 ref: ''+Math.floor(Math.random() * 1000000000),
                 callback: function(response) {
