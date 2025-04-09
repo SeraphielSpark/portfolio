@@ -133,6 +133,17 @@
             border-radius: 5px;
             display: none;
         }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        .file-input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
@@ -163,18 +174,22 @@ Grab yours now and practice magic with ease</textarea>
 
     <div class="contact-list-container">
         <div class="contact-list-header">
-            <h2>Contacts (0)</h2>
+            <h2>Contacts (<span id="contactCount">0</span>)</h2>
             <input type="text" class="search-box" placeholder="Search contacts...">
         </div>
         
         <div class="controls">
+            <div class="file-input-container">
+                <input type="file" id="contactsFile" accept=".txt">
+                <button id="loadContactsBtn">Load Contacts</button>
+            </div>
             <button id="selectAll">Select All</button>
             <button id="clearSelection">Clear Selection</button>
             <button id="exportSelected">Export Selected</button>
         </div>
         
         <div class="contact-list" id="contactList">
-            <!-- Contacts will be loaded here -->
+            <div class="loading">Please load a contacts file</div>
         </div>
         
         <div class="pagination" id="pagination">
@@ -185,160 +200,32 @@ Grab yours now and practice magic with ease</textarea>
     <div class="toast" id="toast">Message copied to clipboard!</div>
 
     <script>
-        // Sample data - in a real app you would load this from a proper data source
-        const contacts = [
-    { number: '234208396830', name: 'Contact 1', country: 'Nigeria' },
-    { number: '2347041046121', name: 'Contact 2', country: 'Nigeria' },
-    { number: '2330208396830', name: 'Contact 3', country: 'Ghana' },
-    { number: '233208396830', name: 'Contact 4', country: 'Ghana' },
-    { number: '2347041046121', name: 'Contact 5', country: 'Nigeria' },
-    { number: '2330245427362', name: 'Contact 6', country: 'Ghana' },
-    { number: '2348182443803', name: 'Contact 7', country: 'Nigeria' },
-    { number: '2349122562855', name: 'Contact 8', country: 'Nigeria' },
-    { number: '2348036453510', name: 'Contact 9', country: 'Nigeria' },
-    { number: '2348122439404', name: 'Contact 10', country: 'Nigeria' },
-    { number: '233549082426', name: 'Contact 11', country: 'Ghana' },
-    { number: '2348169479348', name: 'Contact 12', country: 'Nigeria' },
-    { number: '2347041046121', name: 'Contact 13', country: 'Nigeria' },
-    { number: '2349016299938', name: 'Contact 14', country: 'Nigeria' },
-    { number: '2347069414822', name: 'Contact 15', country: 'Nigeria' },
-    { number: '27684481807', name: 'Contact 16', country: 'South Africa' },
-    { number: '2349162232567', name: 'Contact 17', country: 'Nigeria' },
-    { number: '265885224204', name: 'Contact 18', country: 'Malawi' },
-    { number: '233545813953', name: 'Contact 19', country: 'Ghana' },
-    { number: '233248303468', name: 'Contact 20', country: 'Ghana' },
-    { number: '27607053460', name: 'Contact 21', country: 'South Africa' },
-    { number: '2348068529548', name: 'Contact 22', country: 'Nigeria' },
-    { number: '2349044632966', name: 'Contact 23', country: 'Nigeria' },
-    { number: '2348035754579', name: 'Contact 24', country: 'Nigeria' },
-    { number: '2349050685501', name: 'Contact 25', country: 'Nigeria' },
-    { number: '2348060060950', name: 'Contact 26', country: 'Nigeria' },
-    { number: '2347062934568', name: 'Contact 27', country: 'Nigeria' },
-    { number: '2348034700347', name: 'Contact 28', country: 'Nigeria' },
-    { number: '2348104810817', name: 'Contact 29', country: 'Nigeria' },
-    { number: '2348039215220', name: 'Contact 30', country: 'Nigeria' },
-    { number: '2347076929309', name: 'Contact 31', country: 'Nigeria' },
-    { number: '233249585173', name: 'Contact 32', country: 'Ghana' },
-    { number: '2347038582878', name: 'Contact 33', country: 'Nigeria' },
-    { number: '2348028927632', name: 'Contact 34', country: 'Nigeria' },
-    { number: '2347042223238', name: 'Contact 35', country: 'Nigeria' },
-    { number: '2349136604856', name: 'Contact 36', country: 'Nigeria' },
-    { number: '2348139500568', name: 'Contact 37', country: 'Nigeria' },
-    { number: '233545467241', name: 'Contact 38', country: 'Ghana' },
-    { number: '2349073500279', name: 'Contact 39', country: 'Nigeria' },
-    { number: '2348034565100', name: 'Contact 40', country: 'Nigeria' },
-    { number: '2347060565879', name: 'Contact 41', country: 'Nigeria' },
-    { number: '917006278128', name: 'Contact 42', country: 'India' },
-    { number: '2348067056621', name: 'Contact 43', country: 'Nigeria' },
-    { number: '2349073535646', name: 'Contact 44', country: 'Nigeria' },
-    { number: '2348060833828', name: 'Contact 45', country: 'Nigeria' },
-    { number: '2348138509469', name: 'Contact 46', country: 'Nigeria' },
-    { number: '2347047688476', name: 'Contact 47', country: 'Nigeria' },
-    { number: '2349044649675', name: 'Contact 48', country: 'Nigeria' },
-    { number: '2347067876964', name: 'Contact 49', country: 'Nigeria' },
-    { number: '2347067618794', name: 'Contact 50', country: 'Nigeria' },
-    { number: '2349134700538', name: 'Contact 51', country: 'Nigeria' },
-    { number: '270620450356', name: 'Contact 52', country: 'South Africa' },
-    { number: '2330551917249', name: 'Contact 53', country: 'Ghana' },
-    { number: '2348166856228', name: 'Contact 54', country: 'Nigeria' },
-    { number: '2348062254415', name: 'Contact 55', country: 'Nigeria' },
-    { number: '2348138308408', name: 'Contact 56', country: 'Nigeria' },
-    { number: '2349017976675', name: 'Contact 57', country: 'Nigeria' },
-    { number: '2349016976675', name: 'Contact 58', country: 'Nigeria' },
-    { number: '2347064736229', name: 'Contact 59', country: 'Nigeria' },
-    { number: '2348064946221', name: 'Contact 60', country: 'Nigeria' },
-    { number: '27735667277', name: 'Contact 61', country: 'South Africa' },
-    { number: '233549082426', name: 'Contact 62', country: 'Ghana' },
-    { number: '2348031584745', name: 'Contact 63', country: 'Nigeria' },
-    { number: '2330242217438', name: 'Contact 64', country: 'Ghana' },
-    { number: '2349030809233', name: 'Contact 65', country: 'Nigeria' },
-    { number: '2349125798451', name: 'Contact 66', country: 'Nigeria' },
-    { number: '2348159643733', name: 'Contact 67', country: 'Nigeria' },
-    { number: '2349048961603', name: 'Contact 68', country: 'Nigeria' },
-    { number: '2347061408041', name: 'Contact 69', country: 'Nigeria' },
-    { number: '2347061423831', name: 'Contact 70', country: 'Nigeria' },
-    { number: '2348024372782', name: 'Contact 71', country: 'Nigeria' },
-    { number: '2348058731691', name: 'Contact 72', country: 'Nigeria' },
-    { number: '2349165779694', name: 'Contact 73', country: 'Nigeria' },
-    { number: '2348039307931', name: 'Contact 74', country: 'Nigeria' },
-    { number: '2348066667223', name: 'Contact 75', country: 'Nigeria' },
-    { number: '2347030257317', name: 'Contact 76', country: 'Nigeria' },
-    { number: '2347037161332', name: 'Contact 77', country: 'Nigeria' },
-    { number: '2348121874986', name: 'Contact 78', country: 'Nigeria' },
-    { number: '2347032926425', name: 'Contact 79', country: 'Nigeria' },
-    { number: '2349123180704', name: 'Contact 80', country: 'Nigeria' },
-    { number: '2330551971560', name: 'Contact 81', country: 'Ghana' },
-    { number: '2348062090315', name: 'Contact 82', country: 'Nigeria' },
-    { number: '22660683944', name: 'Contact 83', country: 'Burkina Faso' },
-    { number: '2347084256546', name: 'Contact 84', country: 'Nigeria' },
-    { number: '2349038037047', name: 'Contact 85', country: 'Nigeria' },
-    { number: '2348080360777', name: 'Contact 86', country: 'Nigeria' },
-    { number: '2348052618213', name: 'Contact 87', country: 'Nigeria' },
-    { number: '2348100381343', name: 'Contact 88', country: 'Nigeria' },
-    { number: '67574466534', name: 'Contact 89', country: 'Papua New Guinea' },
-    { number: '2348161639949', name: 'Contact 90', country: 'Nigeria' },
-    { number: '2348164709012', name: 'Contact 91', country: 'Nigeria' },
-    { number: '2290161750858', name: 'Contact 92', country: 'Benin' },
-    { number: '2347042719281', name: 'Contact 93', country: 'Nigeria' },
-    { number: '22994925825', name: 'Contact 94', country: 'Benin' },
-    { number: '2348056131379', name: 'Contact 95', country: 'Nigeria' },
-    { number: '2348100151706', name: 'Contact 96', country: 'Nigeria' },
-    { number: '2347075281160', name: 'Contact 97', country: 'Nigeria' },
-    { number: '2348152580393', name: 'Contact 98', country: 'Nigeria' },
-    { number: '2347081300365', name: 'Contact 99', country: 'Nigeria' },
-    { number: '67578772211', name: 'Contact 100', country: 'Papua New Guinea' },
-    { number: '2349052475227', name: 'Contact 101', country: 'Nigeria' },
-    { number: '2348139591425', name: 'Contact 102', country: 'Nigeria' },
-    { number: '67574466534', name: 'Contact 103', country: 'Papua New Guinea' },
-    { number: '2349069144253', name: 'Contact 104', country: 'Nigeria' },
-    { number: '254732371394', name: 'Contact 105', country: 'Kenya' },
-    { number: '2348063082167', name: 'Contact 106', country: 'Nigeria' },
-    { number: '2348144280526', name: 'Contact 107', country: 'Nigeria' },
-    { number: '2348033171841', name: 'Contact 108', country: 'Nigeria' },
-    { number: '2348060845516', name: 'Contact 109', country: 'Nigeria' },
-    { number: '2347040301644', name: 'Contact 110', country: 'Nigeria' },
-    { number: '2347059277754', name: 'Contact 111', country: 'Nigeria' },
-    { number: '2347077031808', name: 'Contact 112', country: 'Nigeria' },
-    { number: '2348106662705', name: 'Contact 113', country: 'Nigeria' },
-    { number: '2347034308239', name: 'Contact 114', country: 'Nigeria' },
-    { number: '26774023442', name: 'Contact 115', country: 'Botswana' },
-    { number: '2347039590617', name: 'Contact 116', country: 'Nigeria' },
-    { number: '2349065000808', name: 'Contact 117', country: 'Nigeria' },
-    { number: '2349163402896', name: 'Contact 118', country: 'Nigeria' },
-    { number: '2349036415708', name: 'Contact 119', country: 'Nigeria' },
-    { number: '2348104858707', name: 'Contact 120', country: 'Nigeria' },
-    { number: '233543144567', name: 'Contact 121', country: 'Ghana' },
-    { number: '23477569008', name: 'Contact 122', country: 'Nigeria' },
-    { number: '2330556487251', name: 'Contact 123', country: 'Ghana' },
-    { number: '2347088248521', name: 'Contact 124', country: 'Nigeria' },
-    { number: '2349027114795', name: 'Contact 125', country: 'Nigeria' },
-    { number: '2349032643245', name: 'Contact 126', country: 'Nigeria' },
-    { number: '233549733404', name: 'Contact 127', country: 'Ghana' },
-    { number: '2347067863670', name: 'Contact 128', country: 'Nigeria' },
-    { number: '2348130715329', name: 'Contact 129', country: 'Nigeria' },
-    { number: '2347038981898', name: 'Contact 130', country: 'Nigeria' },
-    { number: '2349078050230', name: 'Contact 131', country: 'Nigeria' },
-    { number: '2347034308239', name: 'Contact 132', country: 'Nigeria' },
-    { number: '2347081300365', name: 'Contact 133', country: 'Nigeria' },
-    { number: '2347061484003', name: 'Contact 134', country: 'Nigeria' },
-    { number: '2330538736553', name: 'Contact 135', country: 'Ghana' },
-    { number: '2349118052281', name: 'Contact 136', country: 'Nigeria' },
-    { number: '2349011731362', name: 'Contact 137', country: 'Nigeria' },
-    { number: '233248013408', name: 'Contact 138', country: 'Ghana' },
-    { number: '2348068412510', name: 'Contact 139', country: 'Nigeria' },
-    { number: '2349037494227', name: 'Contact 140', country: 'Nigeria' },
-    { number: '2330246068391', name: 'Contact 141', country: 'Ghana' },
-    { number: '2348128505535', name: 'Contact 142', country: 'Nigeria' },
-    { number: '270605059103', name: 'Contact 143', country: 'South Africa' },
-    { number: '2348100661268', name: 'Contact 144', country: 'Nigeria' },
-    { number: '2330549411084', name: 'Contact 145', country: 'Ghana' },
-    { number: '254735007676', name: 'Contact 146', country: 'Kenya' },
-    { number: '2349023991213', name: 'Contact 147', country: 'Nigeria' },
-    { number: '2348036515556', name: 'Contact 148', country: 'Nigeria' },
-    { number: '270605059102', name: 'Contact 149', country: 'South Africa' },
-    { number: '2330548455067', name: 'Contact 150', country: 'Ghana' }
-    // ... (remaining contacts can be added in the same way)
-];
+        // Country code mapping
+        const countryCodes = {
+            '234': 'Nigeria',
+            '233': 'Ghana',
+            '254': 'Kenya',
+            '255': 'Tanzania',
+            '256': 'Uganda',
+            '257': 'Burundi',
+            '258': 'Mozambique',
+            '260': 'Zambia',
+            '261': 'Madagascar',
+            '263': 'Zimbabwe',
+            '264': 'Namibia',
+            '265': 'Malawi',
+            '266': 'Lesotho',
+            '267': 'Botswana',
+            '268': 'Swaziland',
+            '269': 'Comoros',
+            '27': 'South Africa',
+            '290': 'Saint Helena',
+            '291': 'Eritrea',
+            '297': 'Aruba',
+            '298': 'Faroe Islands',
+            '299': 'Greenland'
+        };
+
         // DOM elements
         const contactList = document.getElementById('contactList');
         const messageTemplate = document.getElementById('messageTemplate');
@@ -347,9 +234,12 @@ Grab yours now and practice magic with ease</textarea>
         const selectAllBtn = document.getElementById('selectAll');
         const clearSelectionBtn = document.getElementById('clearSelection');
         const exportSelectedBtn = document.getElementById('exportSelected');
+        const loadContactsBtn = document.getElementById('loadContactsBtn');
+        const contactsFileInput = document.getElementById('contactsFile');
         const searchBox = document.querySelector('.search-box');
         const toast = document.getElementById('toast');
         const pagination = document.getElementById('pagination');
+        const contactCount = document.getElementById('contactCount');
 
         // Default message template
         const defaultMessage = `Hello sire , 
@@ -358,10 +248,76 @@ This book is in PDF format a readable book on phone and it costs 2k but since it
 Grab yours now and practice magic with ease`;
 
         // Initialize
-        let currentContacts = [...contacts];
+        let contacts = [];
+        let currentContacts = [];
         let selectedContacts = [];
         const contactsPerPage = 50;
         let currentPage = 1;
+
+        // Function to read file content
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = event => resolve(event.target.result);
+                reader.onerror = error => reject(error);
+                reader.readAsText(file);
+            });
+        }
+
+        // Function to process phone numbers from the text file
+        async function loadContactsFromFile(file) {
+            contactList.innerHTML = '<div class="loading">Loading contacts...</div>';
+            
+            try {
+                const text = await readFileContent(file);
+                
+                // Process the text to extract phone numbers
+                const rawNumbers = text.split('\n')
+                    .map(line => line.trim().replace(',', ''))
+                    .filter(line => line.length > 0);
+                
+                // Process each number to create contact objects
+                contacts = rawNumbers.map((number, index) => {
+                    // Clean the number (remove any non-digit characters)
+                    const cleanNumber = number.replace(/\D/g, '');
+                    
+                    // Determine country code (first 1-3 digits)
+                    let countryCode = '';
+                    let country = 'Unknown';
+                    
+                    // Check for 3-digit country codes first
+                    const possible3DigitCode = cleanNumber.substring(0, 3);
+                    if (countryCodes[possible3DigitCode]) {
+                        countryCode = possible3DigitCode;
+                        country = countryCodes[possible3DigitCode];
+                    } 
+                    // Check for 2-digit country codes
+                    else {
+                        const possible2DigitCode = cleanNumber.substring(0, 2);
+                        if (countryCodes[possible2DigitCode]) {
+                            countryCode = possible2DigitCode;
+                            country = countryCodes[possible2DigitCode];
+                        }
+                    }
+                    
+                    return {
+                        number: cleanNumber,
+                        name: `Contact ${index + 1}`,
+                        country: country,
+                        original: number
+                    };
+                });
+                
+                currentContacts = [...contacts];
+                contactCount.textContent = contacts.length;
+                renderContacts();
+                showToast(`Loaded ${contacts.length} contacts`);
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+                contactList.innerHTML = '<div class="loading">Error loading contacts. Please try again.</div>';
+                showToast('Error loading contacts file');
+            }
+        }
 
         // Render contacts
         function renderContacts() {
@@ -385,8 +341,8 @@ Grab yours now and practice magic with ease`;
                 contactElement.innerHTML = `
                     <div class="contact-info">
                         <span class="status ${isSelected ? 'contacted' : ''}"></span>
-                        <span>${contact.name || 'Unknown'}</span>
-                        <small>${formatPhoneNumber(contact.number)}</small>
+                        <span>${contact.name}</span>
+                        <small>${formatPhoneNumber(contact.number)} (${contact.country})</small>
                     </div>
                     <div class="contact-actions">
                         <button class="btn whatsapp-btn" data-number="${contact.number}">WhatsApp</button>
@@ -399,10 +355,6 @@ Grab yours now and practice magic with ease`;
                 contactList.appendChild(contactElement);
             });
             
-            // Update contact count
-            document.querySelector('.contact-list-header h2').textContent = 
-                `Contacts (${currentContacts.length})`;
-                
             // Render pagination
             renderPagination();
             
@@ -412,7 +364,6 @@ Grab yours now and practice magic with ease`;
 
         // Format phone number for display
         function formatPhoneNumber(number) {
-            // Simple formatting - you can enhance this
             return `+${number}`;
         }
 
@@ -424,20 +375,54 @@ Grab yours now and practice magic with ease`;
             
             if (totalPages <= 1) return;
             
-            for (let i = 1; i <= totalPages; i++) {
-                const pageBtn = document.createElement('button');
-                pageBtn.textContent = i;
-                pageBtn.className = 'btn';
-                if (i === currentPage) {
-                    pageBtn.style.backgroundColor = 'var(--secondary)';
-                }
-                
-                pageBtn.addEventListener('click', () => {
-                    currentPage = i;
+            // Previous button
+            if (currentPage > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '←';
+                prevBtn.className = 'btn';
+                prevBtn.addEventListener('click', () => {
+                    currentPage--;
                     renderContacts();
                 });
-                
-                pagination.appendChild(pageBtn);
+                pagination.appendChild(prevBtn);
+            }
+            
+            // Page buttons
+            for (let i = 1; i <= totalPages; i++) {
+                // Only show a limited number of pages around current page
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.textContent = i;
+                    pageBtn.className = 'btn';
+                    if (i === currentPage) {
+                        pageBtn.style.backgroundColor = 'var(--secondary)';
+                    }
+                    
+                    pageBtn.addEventListener('click', () => {
+                        currentPage = i;
+                        renderContacts();
+                    });
+                    
+                    pagination.appendChild(pageBtn);
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    // Add ellipsis for skipped pages
+                    const ellipsis = document.createElement('span');
+                    ellipsis.textContent = '...';
+                    ellipsis.style.padding = '0 10px';
+                    pagination.appendChild(ellipsis);
+                }
+            }
+            
+            // Next button
+            if (currentPage < totalPages) {
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = '→';
+                nextBtn.className = 'btn';
+                nextBtn.addEventListener('click', () => {
+                    currentPage++;
+                    renderContacts();
+                });
+                pagination.appendChild(nextBtn);
             }
         }
 
@@ -525,7 +510,7 @@ Grab yours now and practice magic with ease`;
             
             const csvContent = "data:text/csv;charset=utf-8," 
                 + selected.map(contact => 
-                    `${contact.name || ''},${contact.number},${contact.country || ''}`
+                    `${contact.name},${contact.number},${contact.country}`
                 ).join("\n");
             
             const encodedUri = encodeURI(csvContent);
@@ -537,6 +522,14 @@ Grab yours now and practice magic with ease`;
             document.body.removeChild(link);
             
             showToast(`Exported ${selected.length} contacts`);
+        });
+
+        loadContactsBtn.addEventListener('click', () => {
+            if (contactsFileInput.files.length === 0) {
+                showToast('Please select a file first');
+                return;
+            }
+            loadContactsFromFile(contactsFileInput.files[0]);
         });
 
         searchBox.addEventListener('input', (e) => {
@@ -558,7 +551,6 @@ Grab yours now and practice magic with ease`;
 
         // Initialize
         messageTemplate.value = defaultMessage;
-        renderContacts();
     </script>
 </body>
 </html>
