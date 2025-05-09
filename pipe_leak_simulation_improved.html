@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Pipe Leak Detection Simulation (Improved)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            background: rgba(0,0,0,0.5);
+            padding: 12px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <p id="inputFlow">Input Flow: -- L/s</p>
+        <p id="outputFlow">Output Flow: -- L/s</p>
+        <p id="alert" style="color: red;"></p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Pipe
+        const pipeGeometry = new THREE.CylinderGeometry(0.5, 0.5, 12, 32);
+        const pipeMaterial = new THREE.MeshStandardMaterial({ color: 0x808080, metalness: 0.6, roughness: 0.4 });
+        const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+        pipe.rotation.z = Math.PI / 2;
+        scene.add(pipe);
+
+        // Water Flow
+        const waterGeometry = new THREE.CylinderGeometry(0.45, 0.45, 1, 32);
+        const waterMaterial = new THREE.MeshStandardMaterial({ color: 0x1e90ff, transparent: true, opacity: 0.8 });
+        const water = new THREE.Mesh(waterGeometry, waterMaterial);
+        water.position.x = -6;
+        scene.add(water);
+
+        // Sensors
+        const sensorGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+        const sensorIn = new THREE.Mesh(sensorGeometry, new THREE.MeshStandardMaterial({ color: 0x00bfff }));
+        const sensorOut = new THREE.Mesh(sensorGeometry, new THREE.MeshStandardMaterial({ color: 0x00ff7f }));
+        sensorIn.position.set(-6, 0, 0);
+        sensorOut.position.set(6, 0, 0);
+        scene.add(sensorIn);
+        scene.add(sensorOut);
+
+        // Digital Displays
+        const loader = new THREE.FontLoader();
+        let textMeshIn, textMeshOut;
+
+        loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+            const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const textGeoIn = new THREE.TextGeometry('IN: -- L/s', { font: font, size: 0.4, height: 0.05 });
+            const textGeoOut = new THREE.TextGeometry('OUT: -- L/s', { font: font, size: 0.4, height: 0.05 });
+
+            textMeshIn = new THREE.Mesh(textGeoIn, textMaterial);
+            textMeshOut = new THREE.Mesh(textGeoOut, textMaterial);
+            textMeshIn.position.set(-8, 1, 0);
+            textMeshOut.position.set(5, 1, 0);
+
+            scene.add(textMeshIn);
+            scene.add(textMeshOut);
+        });
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        const pointLight = new THREE.PointLight(0xffffff, 1);
+        pointLight.position.set(0, 5, 5);
+        scene.add(ambientLight, pointLight);
+
+        camera.position.z = 10;
+
+        // Simulation parameters
+        const inputFlowRate = 10.0;
+        const leakRate = 2.0;
+        const threshold = 0.5;
+        let leakDetected = false;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Animate water movement in a loop
+            water.position.x += 0.05;
+            if (water.position.x > 6) {
+                water.position.x = -6;
+            }
+
+            // Leak detection simulation
+            const currentOutput = (leakDetected) ? inputFlowRate - leakRate : inputFlowRate;
+
+            document.getElementById('inputFlow').innerText = `Input Flow: ${inputFlowRate.toFixed(2)} L/s`;
+            document.getElementById('outputFlow').innerText = `Output Flow: ${currentOutput.toFixed(2)} L/s`;
+
+            if (Math.abs(inputFlowRate - currentOutput) > threshold) {
+                document.getElementById('alert').innerText = 'Leak Detected!';
+            } else {
+                document.getElementById('alert').innerText = '';
+            }
+
+            // Update 3D text displays
+            if (textMeshIn && textMeshOut) {
+                textMeshIn.geometry.dispose();
+                textMeshOut.geometry.dispose();
+                textMeshIn.geometry = new THREE.TextGeometry(`IN: ${inputFlowRate.toFixed(2)} L/s`, {
+                    font: textMeshIn.geometry.parameters.font,
+                    size: 0.4,
+                    height: 0.05
+                });
+                textMeshOut.geometry = new THREE.TextGeometry(`OUT: ${currentOutput.toFixed(2)} L/s`, {
+                    font: textMeshOut.geometry.parameters.font,
+                    size: 0.4,
+                    height: 0.05
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Toggle leak every 5 seconds for demonstration
+        setInterval(() => {
+            leakDetected = !leakDetected;
+        }, 5000);
+    </script>
+</body>
+</html>
