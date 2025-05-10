@@ -1,0 +1,169 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pipe Leak Simulation with Sensors & Pascal's Law</title>
+    <style>
+        body {
+            margin: 0;
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            background: #333;
+            border: 2px solid #555;
+        }
+        .readings {
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="readings">
+        <div>Pressure IN: <span id="pressureIn">100 PSI</span></div>
+        <div>Pressure OUT: <span id="pressureOut">100 PSI</span></div>
+        <div>Flow Rate: <span id="flow">50 L/min</span></div>
+        <div>Velocity: <span id="velocity">2 m/s</span></div>
+        <div>Temperature: <span id="temp">25°C</span></div>
+    </div>
+    <canvas id="pipeCanvas" width="800" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById('pipeCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const pressureInEl = document.getElementById('pressureIn');
+        const pressureOutEl = document.getElementById('pressureOut');
+        const flowEl = document.getElementById('flow');
+        const velocityEl = document.getElementById('velocity');
+        const tempEl = document.getElementById('temp');
+
+        // Initial sensor values
+        let pressureIn = 100;   // PSI
+        let pressureOut = 100;  // PSI
+        let flowRate = 50;      // L/min
+        let velocity = 2;       // m/s
+        let temp = 25;          // °C
+
+        // Pipe position
+        const pipe = { x: 100, y: 180, width: 600, height: 40 };
+
+        // Leak point
+        const leakPoint = { x: 450, y: pipe.y + pipe.height / 2 };
+
+        let particles = [];
+
+        function drawPipe() {
+            // Pipe body
+            ctx.fillStyle = '#888';
+            ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
+
+            // Leak hole
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(leakPoint.x, leakPoint.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function addParticle() {
+            particles.push({ x: pipe.x, y: pipe.y + pipe.height / 2 });
+        }
+
+        function drawParticles() {
+            ctx.fillStyle = 'deepskyblue';
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawLeak() {
+            // Simulate leak water drops
+            ctx.fillStyle = 'deepskyblue';
+            particles.forEach(p => {
+                if (Math.abs(p.x - leakPoint.x) < 5) {
+                    ctx.beginPath();
+                    ctx.arc(leakPoint.x + Math.random() * 10, leakPoint.y + 10 + Math.random() * 30, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawLeakDetector() {
+            // Show "LEAK DETECTED" text
+            ctx.fillStyle = 'red';
+            ctx.font = '20px Arial';
+            ctx.fillText('LEAK DETECTED!', leakPoint.x - 60, leakPoint.y - 20);
+        }
+
+        function updateSensors(leakDetected) {
+            if (leakDetected) {
+                // Apply Pascal's principle: pressure drops downstream
+                if (pressureOut > 60) pressureOut -= 0.5;
+                if (temp < 40) temp += 0.2; // fake temperature rise
+            } else {
+                // Stabilize back to normal
+                if (pressureOut < pressureIn) pressureOut += 0.2;
+                if (temp > 25) temp -= 0.1;
+            }
+
+            // Update HTML readings
+            pressureInEl.textContent = pressureIn.toFixed(1) + ' PSI';
+            pressureOutEl.textContent = pressureOut.toFixed(1) + ' PSI';
+            flowEl.textContent = flowRate + ' L/min';
+            velocityEl.textContent = velocity + ' m/s';
+            tempEl.textContent = temp.toFixed(1) + '°C';
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPipe();
+
+            // Move particles
+            particles.forEach(p => {
+                p.x += velocity;
+            });
+
+            drawParticles();
+            drawLeak();
+
+            // Leak detection logic: when particles near leak point
+            let leakDetected = particles.some(p => Math.abs(p.x - leakPoint.x) < 5);
+
+            if (leakDetected) {
+                drawLeakDetector();
+            }
+
+            // Update sensor readings
+            updateSensors(leakDetected);
+
+            // Remove particles out of pipe
+            particles = particles.filter(p => p.x < pipe.x + pipe.width);
+        }
+
+        // Add new particles every 200ms
+        setInterval(addParticle, 200);
+
+        // Animation loop
+        function animate() {
+            update();
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
