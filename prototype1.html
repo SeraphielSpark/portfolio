@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <title>Hot Screw Press CNSL Extraction Simulation</title>
     <style>
-
-body {
+        body {
             font-family: Arial, sans-serif;
             background: #f0f0f0;
             margin: 0;
@@ -22,7 +21,7 @@ body {
             width: 100%;
             place-content: center;
             place-items: center;
-            grid-template-columns: 1fr  ;
+            grid-template-columns: 1fr;
             padding: 20px;
         }
         .process-section {
@@ -131,7 +130,7 @@ body {
             transform: translate(-50%, -50%);
             animation: spin 2s linear infinite;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 15px rgba(0,0,0,0.5);
-            overflow: hidden;
+            overflow: visible;
         }
         .grinder-teeth {
             position: absolute;
@@ -185,6 +184,24 @@ body {
             to { transform: translate(-50%, -50%) rotate(360deg); }
         }
         
+        /* Seed Styles */
+        .seed {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #8b4513;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.8;
+            z-index: 5;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            animation: escape 1.5s forwards;
+        }
+        @keyframes escape {
+            0% { transform: translate(0,0) scale(1); opacity: 1; }
+            100% { transform: translate(100px,-50px) scale(0); opacity: 0; }
+        }
+
         /* Press Section Styles */
         .press-box {
             position: relative;
@@ -435,10 +452,28 @@ body {
         }
         .sound-btn {
             padding: 8px 15px;
-            background: red;
+            background: #555;
             font-size: 14px;
         }
-      
+        @media (max-width: 480px) {
+            .container{
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .grinder-box, .press-box {
+                transform: scale(0.8);
+            }
+            .monitor-box {
+                font-size: 16px;
+                padding: 10px;
+            }
+    
+            .oil-tank {
+                width: 120px;
+                height: 160px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -557,6 +592,9 @@ body {
         let oilHistory = [];
         let grinderSpeedHistory = [];
         let oilDropsInPipe = [];
+        let seeds = [];
+        let seedSpawnInterval;
+        const maxSeeds = 30;
         
         // Sound controls
         let grinderSoundEnabled = true;
@@ -566,12 +604,6 @@ body {
         
         // DOM elements
         const setpointInput = document.getElementById('setpoint');
-        const kpSlider = document.getElementById('kp');
-        const kiSlider = document.getElementById('ki');
-        const kdSlider = document.getElementById('kd');
-        const kpValue = document.getElementById('kp-value');
-        const kiValue = document.getElementById('ki-value');
-        const kdValue = document.getElementById('kd-value');
         const startBtn = document.getElementById('startBtn');
         const resetBtn = document.getElementById('resetBtn');
         const grinderSoundBtn = document.getElementById('grinderSoundBtn');
@@ -586,13 +618,6 @@ body {
         const grinderWheel = document.getElementById('grinderWheel');
         const oilInTank = document.getElementById('oilInTank');
         const pipeSystem = document.querySelector('.pipe-system');
-        
-        // Graph elements
-        const pidSetpoint = document.getElementById('pidSetpoint');
-        const pidActual = document.getElementById('pidActual');
-        const pressSetpoint = document.getElementById('pressSetpoint');
-        const pressActual = document.getElementById('pressActual');
-        const grinderActual = document.getElementById('grinderActual');
 
         // Initialize grinder teeth
         function initGrinderTeeth() {
@@ -608,57 +633,94 @@ body {
             }
         }
 
-        // PID Controller
-      function pidController() {
-    const error = setPoint - currentTemp;
-    integral += error * 0.1;
-    integral = Math.max(-100, Math.min(100, integral));
-    const derivative = (error - prevError) / 0.1;
-    heaterPower = Kp * error + Ki * integral + Kd * derivative;
-    heaterPower = Math.max(0, Math.min(heaterPower, 100));
-    prevError = error;
-}
-
-function updateTemperature() {
-    // Modified heating rate calculation
-    const heatingRate = heaterPower * 0.08; // Increased heating efficiency
-    const coolingRate = Math.pow((currentTemp - ambientTemp) / 50, 1.5) * 0.8;
-    currentTemp += heatingRate - coolingRate;
-    currentTemp = Math.max(ambientTemp - 5, currentTemp);
-    
-    // Cap maximum temperature at 350°C for safety
-    currentTemp = Math.min(350, currentTemp);
-}
-        // Update oil output based on temperature and pressure (simulated)
-        function updateOilOutput() {
-    const baseFlow = Math.max(0, (currentTemp - 100) / 2);
-    const randomFactor = 0.9 + Math.random() * 0.2;
-    const pressureFactor = 0.5 + heaterPower / 200;
-    
-    oilOutput = Math.min(100, baseFlow * randomFactor * pressureFactor);
-    
-    if (oilOutput > 5) {
-        oilCollected += oilOutput / 500;
-        oilCollected = Math.min(100, oilCollected);
-        oilInTank.style.height = `${oilCollected}%`;
-        
-        // Shut off engine when tank is full
-        if(oilCollected >= 100) {
-            running = false;
-            startBtn.textContent = 'Start Simulation';
-            startBtn.disabled = false;
-            alert('Oil container full! Engine stopped.');
-            oilSound.pause()
+        // Seed management functions
+        function createSeed() {
+            if (!running || seeds.length >= maxSeeds) return;
+            
+            const seed = document.createElement('div');
+            seed.className = 'seed';
+            grinderWheel.appendChild(seed);
+            
+            seeds.push({
+                element: seed,
+                angle: Math.random() * Math.PI * 2,
+                radius: 60,
+                escaped: false
+            });
         }
-    }
-}
 
-        // Update grinder speed based on process conditions
+        function updateSeeds() {
+            const rotationSpeed = parseFloat(grinderWheel.style.animationDuration.replace('s','')) || 3;
+            const angularVelocity = (2 * Math.PI) / rotationSpeed;
+            
+            seeds.forEach((seed, index) => {
+                if (seed.escaped) return;
+                
+                seed.angle += angularVelocity * 0.016;
+                seed.radius += 0.8;
+                
+                const x = 70 + Math.cos(seed.angle) * seed.radius;
+                const y = 70 + Math.sin(seed.angle) * seed.radius;
+                
+                seed.element.style.left = `${x}px`;
+                seed.element.style.top = `${y}px`;
+                
+                if (seed.radius > 80) {
+                    seed.escaped = true;
+                    seed.element.style.animation = 'escape 1.5s forwards';
+                    setTimeout(() => {
+                        seed.element.remove();
+                        seeds.splice(index, 1);
+                    }, 1500);
+                }
+            });
+        }
+
+        // PID Controller
+        function pidController() {
+            const error = setPoint - currentTemp;
+            integral += error * 0.1;
+            integral = Math.max(-100, Math.min(100, integral));
+            const derivative = (error - prevError) / 0.1;
+            heaterPower = Kp * error + Ki * integral + Kd * derivative;
+            heaterPower = Math.max(0, Math.min(heaterPower, 100));
+            prevError = error;
+        }
+
+        function updateTemperature() {
+            const heatingRate = heaterPower * 0.08;
+            const coolingRate = Math.pow((currentTemp - ambientTemp) / 50, 1.5) * 0.8;
+            currentTemp += heatingRate - coolingRate;
+            currentTemp = Math.max(ambientTemp - 5, currentTemp);
+            currentTemp = Math.min(350, currentTemp);
+        }
+
+        function updateOilOutput() {
+            const baseFlow = Math.max(0, (currentTemp - 100) / 2);
+            const randomFactor = 0.9 + Math.random() * 0.2;
+            const pressureFactor = 0.5 + heaterPower / 200;
+            
+            oilOutput = Math.min(100, baseFlow * randomFactor * pressureFactor);
+            
+            if (oilOutput > 5) {
+                oilCollected += oilOutput / 500;
+                oilCollected = Math.min(100, oilCollected);
+                oilInTank.style.height = `${oilCollected}%`;
+                
+                if(oilCollected >= 100) {
+                    running = false;
+                    startBtn.textContent = 'Start Simulation';
+                    startBtn.disabled = false;
+                    alert('Oil container full! Engine stopped.');
+                    oilSound.pause();
+                }
+            }
+        }
+
         function updateGrinder() {
-            const speed = 1 + oilOutput / 30; // Speed up as oil flows more
+            const speed = 1 + oilOutput / 30;
             grinderWheel.style.animationDuration = `${3 / speed}s`;
             
-            // Update grinder sound
             if (grinderSoundEnabled && running) {
                 grinderSound.playbackRate = 0.5 + speed / 3;
                 if (grinderSound.paused) {
@@ -669,44 +731,36 @@ function updateTemperature() {
             }
         }
 
-        // Create fluid droplets that will enter the pipe
         function createFluidDroplets() {
             if (oilOutput > 5 && Math.random() < 0.3) {
-                // Create new droplet in press
                 const droplet = document.createElement('div');
                 droplet.className = 'fluid-droplet';
                 fluidContainer.appendChild(droplet);
                 
-                // Animate droplet
                 setTimeout(() => {
                     droplet.style.opacity = '1';
                     droplet.style.transform = 'translateY(-10px)';
                     
-                    // Play oil sound when droplet forms
                     if (oilSoundEnabled && Math.random() < 0.3) {
                         oilSound.currentTime = 0;
                         oilSound.play().catch(e => console.log("Oil sound play failed:", e));
                     }
                     
-                    // Create oil drop in pipe after delay
                     setTimeout(() => {
                         createOilDropInPipe();
                     }, 500);
                     
-                    // Remove after animation
                     setTimeout(() => {
                         droplet.remove();
                     }, 1000);
                 }, 10);
                 
-                // Create particles occasionally
                 if (Math.random() < 0.3) {
                     createParticles();
                 }
             }
         }
 
-        // Create an oil drop that flows through the pipe
         function createOilDropInPipe() {
             const drop = document.createElement('div');
             drop.className = 'oil-flow';
@@ -714,22 +768,18 @@ function updateTemperature() {
             drop.style.bottom = '2px';
             pipeSystem.appendChild(drop);
             
-            // Add to tracking array
-            const dropObj = {
+            oilDropsInPipe.push({
                 element: drop,
                 position: 0,
                 section: 1
-            };
-            oilDropsInPipe.push(dropObj);
+            });
         }
 
-        // Animate oil drops through the pipe system
         function animateOilDrops() {
             for (let i = oilDropsInPipe.length - 1; i >= 0; i--) {
                 const drop = oilDropsInPipe[i];
                 
-                // Move drop based on current pipe section
-                if (drop.section === 1) { // Vertical pipe up
+                if (drop.section === 1) {
                     drop.position += 1;
                     drop.element.style.bottom = `${2 + drop.position}px`;
                     
@@ -740,7 +790,7 @@ function updateTemperature() {
                         drop.element.style.bottom = '32px';
                     }
                 } 
-                else if (drop.section === 2) { // Horizontal pipe right
+                else if (drop.section === 2) {
                     drop.position += 1.5;
                     drop.element.style.left = `${2 + drop.position}px`;
                     
@@ -751,12 +801,11 @@ function updateTemperature() {
                         drop.element.style.bottom = '32px';
                     }
                 }
-                else if (drop.section === 3) { // Vertical pipe down
+                else if (drop.section === 3) {
                     drop.position += 1;
                     drop.element.style.bottom = `${32 - drop.position}px`;
                     
                     if (drop.position >= 78) {
-                        // Remove drop when it reaches the end
                         drop.element.remove();
                         oilDropsInPipe.splice(i, 1);
                     }
@@ -764,7 +813,6 @@ function updateTemperature() {
             }
         }
 
-        // Create visual particles for realism
         function createParticles() {
             for (let i = 0; i < 5; i++) {
                 const particle = document.createElement('div');
@@ -773,12 +821,10 @@ function updateTemperature() {
                 particle.style.bottom = `${fluidContainer.clientHeight + 5}px`;
                 particlesContainer.appendChild(particle);
                 
-                // Animate particle
                 setTimeout(() => {
                     particle.style.opacity = '0.8';
                     particle.style.transform = `translate(${Math.random() * 40 - 20}px, ${-Math.random() * 30 - 10}px)`;
                     
-                    // Remove after animation
                     setTimeout(() => {
                         particle.remove();
                     }, 1000);
@@ -786,67 +832,44 @@ function updateTemperature() {
             }
         }
 
-        // Update all visual elements
         function renderUI() {
-            // Update monitors
             currentTempMonitor.textContent = currentTemp.toFixed(1) + "°C";
             heaterPowerMonitor.textContent = heaterPower.toFixed(1) + "%";
             oilOutputMonitor.textContent = oilOutput.toFixed(1) + "%";
             
-            // Update heat flow visualization
             heatFlow.style.opacity = (heaterPower > 5 ? heaterPower / 120 : 0);
             
-            // Update material appearance based on temperature
             const materialColor = currentTemp < 100 ? 'linear-gradient(to bottom, #a0522d, #8b4513)' :
                                 currentTemp < 150 ? 'linear-gradient(to bottom, #b5651d, #a0522d)' :
                                 'linear-gradient(to bottom, #c17730, #b5651d)';
             material.style.background = materialColor;
             
-            // Shrink material as oil is extracted
             const materialSize = Math.max(30, 100 - oilOutput / 1.5);
             material.style.width = `${materialSize}px`;
             material.style.height = `${materialSize}px`;
             
-            // Update fluid container height
-            const maxFluidHeight = 150;
-            fluidContainer.style.height = `${maxFluidHeight * (oilOutput / 100)}px`;
+            fluidContainer.style.height = `${150 * (oilOutput / 100)}px`;
             
-            // Animate oil drops through pipes
             animateOilDrops();
-            
-            // Update graphs
         }
 
-        // Helper function to update a single graph line
-        // Convert simple div graphs to SVG for smoother lines
-       
-        // Main simulation loop
         function loop() {
             if (!running) return;
             
-            // Update simulation time
             simulationTime += 0.1;
-            
-            // Get current setpoint and PID parameters
             setPoint = parseFloat(setpointInput.value);
-            Kp = 1.5;
-            Ki = 0.1;
-            Kd = 0.5;
-            // Run control and process updates
+            
             pidController();
             updateTemperature();
             updateOilOutput();
             updateGrinder();
-            
-            // Update visuals
+            updateSeeds();
             renderUI();
             createFluidDroplets();
             
-            // Continue loop
             requestAnimationFrame(loop);
         }
 
-        // Reset simulation
         function resetSimulation() {
             running = false;
             currentTemp = 25;
@@ -856,20 +879,17 @@ function updateTemperature() {
             integral = 0;
             prevError = 0;
             simulationTime = 0;
-            tempHistory = [];
-            setpointHistory = [];
-            powerHistory = [];
-            oilHistory = [];
-            grinderSpeedHistory = [];
             
-            // Remove all oil drops from pipe
+            clearInterval(seedSpawnInterval);
+            seeds.forEach(seed => seed.element.remove());
+            seeds = [];
+            
             oilDropsInPipe.forEach(drop => drop.element.remove());
             oilDropsInPipe = [];
             
             startBtn.textContent = 'Start Simulation';
             startBtn.disabled = false;
             
-            // Reset visuals
             heatFlow.style.opacity = '0';
             fluidContainer.style.height = '0';
             material.style.width = '100px';
@@ -878,27 +898,20 @@ function updateTemperature() {
             grinderWheel.style.animationDuration = '3s';
             oilInTank.style.height = '0';
             
-            // Clear fluid droplets
             while (fluidContainer.firstChild) {
                 fluidContainer.removeChild(fluidContainer.firstChild);
             }
             
-            // Clear particles
             while (particlesContainer.firstChild) {
                 particlesContainer.removeChild(particlesContainer.firstChild);
             }
             
-            // Stop sounds
             grinderSound.pause();
             grinderSound.currentTime = 0;
             
-            // Update monitors
             currentTempMonitor.textContent = '25.0°C';
             heaterPowerMonitor.textContent = '0%';
             oilOutputMonitor.textContent = '0%';
-            
-            // Reset graphs
-            updateGraphs();
         }
 
         // Event listeners
@@ -907,15 +920,13 @@ function updateTemperature() {
                 running = true;
                 startBtn.textContent = 'Running...';
                 startBtn.disabled = true;
+                seedSpawnInterval = setInterval(createSeed, 1000);
                 loop();
             }
         });
 
         resetBtn.addEventListener('click', resetSimulation);
 
-        Kp = 1.5;
-        Ki = 0.1;
-        Kd = 0.5;
         grinderSoundBtn.addEventListener('click', () => {
             grinderSoundEnabled = !grinderSoundEnabled;
             grinderSoundBtn.textContent = grinderSoundEnabled ? 
@@ -944,13 +955,8 @@ function updateTemperature() {
 
         // Initialize simulation
         initGrinderTeeth();
-       
-        
-        // Initialize sound buttons
         grinderSoundBtn.textContent = "Grinder Sound: ON";
         oilSoundBtn.textContent = "Oil Sound: ON";
-        
-        // Preload sounds
         grinderSound.load();
         oilSound.load();
     </script>
