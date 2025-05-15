@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Groundnut Expeller - Complete Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; margin-top: 100px;}
+        #controls { 
+            display: grid;
+            place-content: center;
+            background: rgba(255,255,255,0.8); 
+            padding: 10px;
+            border-radius: 5px;
+          
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls"></div>
+    <script type="module">
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
+        import TWEEN from 'https://cdn.jsdelivr.net/npm/@tweenjs/tween.js@18.6.4/dist/tween.esm.js';
+        import { GUI } from 'https://cdn.jsdelivr.net/npm/lil-gui@0.16.1/dist/lil-gui.esm.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Materials
+        const materials = {
+            metal: new THREE.MeshStandardMaterial({ 
+                color: 0xaaaaaa,
+                metalness: 0.9,
+                roughness: 0.4
+            }),
+            rubber: new THREE.MeshStandardMaterial({ 
+                color: 0x222222,
+                roughness: 0.8
+            }),
+            groundnut: new THREE.MeshStandardMaterial({ 
+                color: 0x8B4513,
+                roughness: 0.7
+            }),
+            oil: new THREE.MeshStandardMaterial({ 
+                color: 0xCD853F,
+                transparent: true,
+                opacity: 0.8
+            }),
+            wood: new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                roughness: 0.7
+            })
+        };
+
+        // Main components
+        const components = {
+            hopper: createHopper(),
+            expeller: createExpeller(),
+            motor: createMotor(),
+            belt: createBelt(),
+            cakeContainer: createContainer(0x964B00, -3, 0),
+            oilContainer: createContainer(0xCD853F, 3, 0),
+            stand: createStand()
+        };
+
+        // Animation variables
+        let motorRunning = false;
+        const groundnuts = [];
+        const oilParticles = [];
+        const cakeParticles = [];
+
+        // Control parameters
+        const params = {
+            motorSpeed: 1,
+            addGroundnuts: () => addGroundnuts(5),
+            toggleMotor: () => {
+                motorRunning = !motorRunning;
+                params.motorSpeed = motorRunning ? 1 : 0;
+                gui.updateDisplay();
+            }
+        };
+
+        // GUI
+        const gui = new GUI({ container: document.getElementById('controls') });
+        gui.add(params, 'motorSpeed', 0, 2).name('Motor Speed');
+        gui.add(params, 'addGroundnuts').name('Add Groundnuts');
+        gui.add(params, 'toggleMotor').name(motorRunning ? 'Stop Motor' : 'Start Motor');
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(ambientLight, directionalLight);
+
+        // Camera position
+        camera.position.set(5, 8, 12);
+        camera.lookAt(0, 1, 0);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            
+            // Rotate motor and expeller if running
+            if (motorRunning) {
+                components.motor.rotation.y += params.motorSpeed * 0.1;
+                components.expeller.rollers.forEach(roller => {
+                    roller.rotation.x += params.motorSpeed * 0.05;
+                });
+                
+                // Rotate belt
+                components.belt.rotation.x += params.motorSpeed * 0.05;
+                
+                // Process any groundnuts in hopper
+                if (groundnuts.length > 0 && Math.random() > 0.9) {
+                    processGroundnut();
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Component creation functions
+        function createHopper() {
+            const group = new THREE.Group();
+            group.position.y = 0.5;
+            
+            // Main container
+            const container = new THREE.Mesh(
+                new THREE.CylinderGeometry(2, 1.5, 3, 8),
+                materials.metal
+            );
+            container.position.y = 4;
+            container.castShadow = true;
+            
+            // Inlet (wider opening)
+            const inlet = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.5, 1.8, 0.5, 6),
+                materials.metal
+            );
+            inlet.position.y = 5.5;
+            inlet.castShadow = true;
+            
+            // Support legs
+            for (let i = 0; i < 3; i++) {
+                const leg = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.1, 0.1, 3, 8),
+                    materials.metal
+                );
+                leg.position.x = Math.cos(i * Math.PI * 2/3) * 1.8;
+                leg.position.z = Math.sin(i * Math.PI * 2/3) * 1.8;
+                leg.position.y = 1.5;
+                leg.rotation.z = Math.PI/2;
+                leg.rotation.x = Math.PI/2;
+                group.add(leg);
+            }
+            
+            group.add(container, inlet);
+            scene.add(group);
+            return group;
+        }
+
+        function createExpeller() {
+            const group = new THREE.Group();
+            group.position.y = 1.5;
+            
+            // Main body (expeller chamber)
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(2, 2, 3, 32),
+                materials.metal
+            );
+            body.castShadow = true;
+            
+            // Internal crushing rollers (now with more realistic spacing)
+            const rollers = [];
+            for (let i = 0; i < 2; i++) { // Two rollers for better crushing effect
+                const roller = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.6, 0.6, 2.8, 16),
+                    materials.metal
+                );
+                roller.position.x = Math.cos(i * Math.PI) * 0.8;
+                roller.position.z = 0;
+                roller.castShadow = true;
+                rollers.push(roller);
+                group.add(roller);
+            }
+            
+            // Outlet for cake (wider chute)
+            const cakeOutlet = new THREE.Mesh(
+                new THREE.BoxGeometry(1.5, 0.5, 1),
+                materials.metal
+            );
+            cakeOutlet.position.set(-2.5, 0, 0);
+            cakeOutlet.castShadow = true;
+            
+            // Outlet for oil (with drip edge)
+            const oilOutlet = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 0.2, 1),
+                materials.metal
+            );
+            oilOutlet.position.set(2.5, 0.5, 0);
+            oilOutlet.rotation.z = Math.PI/4;
+            oilOutlet.castShadow = true;
+            
+            group.add(body, cakeOutlet, oilOutlet);
+            group.rollers = rollers;
+            scene.add(group);
+            return group;
+        }
+
+        function createMotor() {
+            const group = new THREE.Group();
+            group.position.set(-4, 1, 0);
+            
+            // Motor body with cooling fins
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(1, 1, 2, 16),
+                materials.metal
+            );
+            body.castShadow = true;
+            
+            // Cooling fins
+            for (let i = 0; i < 8; i++) {
+                const fin = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.1, 2, 0.5),
+                    materials.metal
+                );
+                fin.position.x = Math.cos(i * Math.PI/4) * 1.1;
+                fin.position.z = Math.sin(i * Math.PI/4) * 1.1;
+                group.add(fin);
+            }
+            
+            // Shaft with pulley
+            const shaft = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.3, 0.3, 0.5, 12),
+                materials.metal
+            );
+            shaft.position.x = 1.5;
+            shaft.castShadow = true;
+            
+            // Motor base
+            const base = new THREE.Mesh(
+                new THREE.BoxGeometry(2, 0.5, 2),
+                materials.metal
+            );
+            base.position.y = -1.25;
+            
+            group.add(body, shaft, base);
+            scene.add(group);
+            return group;
+        }
+
+        function createBelt() {
+            const belt = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.2, 3.5),
+                materials.rubber
+            );
+            belt.rotation.z = Math.PI/2;
+            belt.position.set(-2, 1, 0);
+            belt.castShadow = true;
+            scene.add(belt);
+            return belt;
+        }
+
+        function createContainer(color, x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.5, z);
+            
+            // Container with spout
+            const container = new THREE.Mesh(
+                new THREE.CylinderGeometry(1.5, 1.2, 2, 16),
+                new THREE.MeshStandardMaterial({ 
+                    color: color,
+                    transparent: true,
+                    opacity: 0.7
+                })
+            );
+            container.castShadow = true;
+            
+            // Support frame
+            const support = new THREE.Mesh(
+                new THREE.BoxGeometry(3, 0.2, 3),
+                materials.wood
+            );
+            support.position.y = -1.1;
+            
+            group.add(container, support);
+            scene.add(group);
+            return group;
+        }
+
+        function createStand() {
+            const group = new THREE.Group();
+            
+            // Base platform
+            const platform = new THREE.Mesh(
+                new THREE.BoxGeometry(12, 0.5, 8),
+                materials.wood
+            );
+            platform.position.y = -0.25;
+            platform.receiveShadow = true;
+            
+            // Support beams
+            for (let x of [-5, 0, 5]) {
+                const beam = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 3, 0.5),
+                    materials.wood
+                );
+                beam.position.set(x, 1.5, 3);
+                group.add(beam);
+            }
+            
+            group.add(platform);
+            scene.add(group);
+            return group;
+        }
+
+        function addGroundnuts(count) {
+            for (let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const nut = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.15, 8, 8),
+                        materials.groundnut
+                    );
+                    nut.position.set(
+                        Math.random() * 3 - 1.5, // Wider spread
+                        6 + Math.random(),
+                        Math.random() * 3 - 1.5
+                    );
+                    nut.castShadow = true;
+                    scene.add(nut);
+                    
+                    // Animate falling into hopper
+                    new TWEEN.Tween(nut.position)
+                        .to({ y: 4.5 }, 1500)
+                        .easing(TWEEN.Easing.Quadratic.In)
+                        .onComplete(() => {
+                            scene.remove(nut);
+                            groundnuts.pop(); // Remove from array
+                        })
+                        .start();
+                    
+                    groundnuts.push(nut);
+                }, i * 300);
+            }
+        }
+
+        function processGroundnut() {
+            // Create oil droplets (more realistic flow)
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const oil = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.08, 6, 6),
+                        materials.oil
+                    );
+                    oil.position.set(
+                        2.5, 
+                        1.5, 
+                        Math.random() * 0.8 - 0.4
+                    );
+                    oil.castShadow = true;
+                    
+                    new TWEEN.Tween(oil.position)
+                        .to({ 
+                            x: components.oilContainer.position.x + Math.random() * 1.5 - 0.75,
+                            y: 0.5,
+                            z: components.oilContainer.position.z + Math.random() * 1.5 - 0.75
+                        }, 2000)
+                        .easing(TWEEN.Easing.Quadratic.In)
+                        .onComplete(() => scene.remove(oil))
+                        .start();
+                    
+                    scene.add(oil);
+                    oilParticles.push(oil);
+                }, i * 200);
+            }
+            
+            // Create cake particles (more realistic chunks)
+            const cakeSize = 0.15 + Math.random() * 0.1;
+            const cake = new THREE.Mesh(
+                new THREE.BoxGeometry(cakeSize, cakeSize, cakeSize),
+                new THREE.MeshStandardMaterial({ color: 0x964B00 })
+            );
+            cake.position.set(-2.5, 1.5, 0);
+            cake.castShadow = true;
+            
+            new TWEEN.Tween(cake.position)
+                .to({ 
+                    x: components.cakeContainer.position.x + Math.random() * 1.5 - 0.75,
+                    y: 0.5,
+                    z: components.cakeContainer.position.z + Math.random() * 1.5 - 0.75
+                }, 2500)
+                .easing(TWEEN.Easing.Quadratic.In)
+                .onComplete(() => scene.remove(cake))
+                .start();
+            
+            scene.add(cake);
+            cakeParticles.push(cake);
+        }
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</
