@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Industrial Cashew Processor Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .simulation-area {
+            display: flex;
+            gap: 40px;
+            width: 100%;
+            max-width: 1200px;
+            justify-content: center;
+        }
+
+        .processing-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .grinder-assembly {
+            width: 250px;
+            height: 250px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .grinder-wheel {
+            width: 180px;
+            height: 180px;
+            background: linear-gradient(145deg, #666, #888);
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: spin 4s linear infinite;
+            border: 10px solid #555;
+        }
+
+        .seed {
+            width: 12px;
+            height: 12px;
+            background: #8b4513;
+            border-radius: 50%;
+            position: absolute;
+            animation: fall 3s linear forwards;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .collection-tank {
+            width: 200px;
+            height: 300px;
+            background: #ddd;
+            border: 5px solid #aaa;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .oil-level {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0;
+            background: linear-gradient(to bottom, #f8d568, #d4a017);
+            transition: height 0.5s;
+        }
+
+        .press-assembly {
+            width: 220px;
+            height: 400px;
+            background: linear-gradient(to bottom, #888, #aaa);
+            border-radius: 15px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .piston {
+            width: 120px;
+            height: 60px;
+            background: #777;
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 10px;
+            animation: press 2s infinite;
+        }
+
+        .temperature-display {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+
+        @keyframes spin {
+            from { transform: translateX(-50%) rotate(0deg); }
+            to { transform: translateX(-50%) rotate(360deg); }
+        }
+
+        @keyframes fall {
+            0% { top: 50px; opacity: 1; }
+            100% { top: 400px; opacity: 0; }
+        }
+
+        @keyframes press {
+            0%, 100% { transform: translateX(-50%) scaleY(1); }
+            50% { transform: translateX(-50%) scaleY(0.8); }
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #28a745;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .simulation-area {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="control-panel">
+        <h1>Industrial Cashew Processor Simulator</h1>
+        <div class="controls">
+            <button id="startBtn">Start System</button>
+            <button id="stopBtn" disabled>Emergency Stop</button>
+            <button id="heaterBtn">Activate Heater (OFF)</button>
+            <div class="temperature-readout">
+                Chamber Temperature: <span id="tempDisplay">25</span>°C
+            </div>
+        </div>
+    </div>
+
+    <div class="simulation-area">
+        <div class="processing-column">
+            <div class="grinder-assembly">
+                <div class="grinder-wheel"></div>
+            </div>
+            <div class="collection-tank">
+                <div class="oil-level" id="oilLevel"></div>
+            </div>
+        </div>
+
+        <div class="press-assembly">
+            <div class="piston"></div>
+            <div class="temperature-display">
+                Thermocouple: <span id="thermocouple">25</span>°C
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let currentTemp = 25;
+        let heaterActive = false;
+        let oilLevel = 0;
+        const ambientTemp = 25;
+        let animationFrameId;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const heaterBtn = document.getElementById('heaterBtn');
+        const tempDisplay = document.getElementById('thermocouple');
+        const oilLevelElement = document.getElementById('oilLevel');
+
+        function createSeed() {
+            const seed = document.createElement('div');
+            seed.className = 'seed';
+            seed.style.left = `${Math.random() * 200 + 25}px`;
+            document.querySelector('.grinder-assembly').appendChild(seed);
+            
+            setTimeout(() => {
+                seed.remove();
+                if(isRunning) oilLevel = Math.min(100, oilLevel + 0.5);
+                oilLevelElement.style.height = `${oilLevel}%`;
+            }, 3000);
+        }
+
+        function updateTemperature() {
+            if(heaterActive) {
+                currentTemp += 0.3;
+                currentTemp = Math.min(150, currentTemp);
+            } else {
+                currentTemp -= 0.1;
+                currentTemp = Math.max(ambientTemp, currentTemp);
+            }
+            tempDisplay.textContent = currentTemp.toFixed(1);
+        }
+
+        function processLoop() {
+            if(!isRunning) return;
+            
+            updateTemperature();
+            
+            if(Math.random() < 0.3) createSeed();
+            
+            animationFrameId = requestAnimationFrame(processLoop);
+        }
+
+        startBtn.addEventListener('click', () => {
+            isRunning = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            processLoop();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            isRunning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            cancelAnimationFrame(animationFrameId);
+        });
+
+        heaterBtn.addEventListener('click', () => {
+            heaterActive = !heaterActive;
+            heaterBtn.textContent = `Heater (${heaterActive ? 'ON' : 'OFF'})`;
+            heaterBtn.style.background = heaterActive ? '#dc3545' : '#28a745';
+        });
+
+        // Initialize system
+        oilLevelElement.style.height = '0%';
+    </script>
+</body>
+</html>
