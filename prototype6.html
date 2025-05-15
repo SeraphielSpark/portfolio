@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D Pipeline Leak Detection System</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #controls { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background: rgba(255,255,255,0.9); 
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            width: 250px;
+        }
+        .sensor-display {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+        .label {
+            position: absolute;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .alert-banner {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls"></div>
+    <div class="sensor-display">
+        <h3 style="margin-top:0;">Pressure Monitoring System</h3>
+        <div>Inlet Pressure: <span id="inlet-pressure">100</span> psi</div>
+        <div>Outlet Pressure: <span id="outlet-pressure">98</span> psi</div>
+        <div>Pressure Difference: <span id="pressure-diff">2</span> psi</div>
+        <div id="leak-alert" style="color:red; font-weight:bold; margin-top:10px;"></div>
+    </div>
+    <div class="alert-banner" id="system-alert">WARNING: LEAK DETECTED IN PIPELINE!</div>
+    <script type="module">
+        // Import required libraries
+        import * as THREE from 'https://cdn.skypack.dev/three@0.128.0';
+        import { OrbitControls } from 'https://cdn.skypack.dev/three@0.128.0/examples/jsm/controls/OrbitControls.js';
+        import { GUI } from 'https://cdn.skypack.dev/lil-gui@0.16';
+        import TWEEN from 'https://cdn.skypack.dev/@tweenjs/tween.js@18.6.4';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 7);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        scene.add(ambientLight, directionalLight);
+
+        // Add hemisphere light for more natural lighting
+        const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.5);
+        scene.add(hemisphereLight);
+
+        // OrbitControls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        camera.position.set(0, 8, 20);
+        controls.update();
+
+        // Ground with improved texture
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+        groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
+        groundTexture.repeat.set(10, 10);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            map: groundTexture,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Pipeline system
+        const pipeline = {
+            segments: [],
+            oilParticles: [],
+            inletPressure: 100,
+            outletPressure: 98,
+            leakPosition: null,
+            isLeaking: false,
+            oilFlowRate: 1.0,
+            oilTexture: new THREE.TextureLoader().load('https://threejs.org/examples/textures/water.jpg'),
+            leakParticles: [],
+            leakVisual: null
+        };
+
+        // Create pipeline components
+        function createPipeline() {
+            // Storage tank with improved details
+            const tankGeometry = new THREE.CylinderGeometry(3, 3, 5, 32);
+            const tankMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4682B4,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            const tank = new THREE.Mesh(tankGeometry, tankMaterial);
+            tank.position.set(-15, 3, 0);
+            tank.castShadow = true;
+            
+            // Tank details
+            const tankTopGeometry = new THREE.CylinderGeometry(3.1, 3.1, 0.3, 32);
+            const tankTop = new THREE.Mesh(tankTopGeometry, new THREE.MeshStandardMaterial({
+                color: 0x5D8AA8,
+                metalness: 0.8,
+                roughness: 0.2
+            }));
+            tankTop.position.set(-15, 5.15, 0);
+            tankTop.castShadow = true;
+            
+            scene.add(tank, tankTop);
+            addLabel(tank.position.clone().add(new THREE.Vector3(0, 4, 0)), "Storage Tank");
+
+            // Main pipeline with improved materials
+            const pipeGeometry = new THREE.CylinderGeometry(0.8, 0.8, 30, 32);
+            const pipeMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xC0C0C0,
+                metalness: 0.8,
+                roughness: 0.4,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            // Main pipe segment
+            const mainPipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+            mainPipe.rotation.z = Math.PI/2;
+            mainPipe.position.set(0, 1.5, 0);
+            mainPipe.castShadow = true;
+            scene.add(mainPipe);
+            pipeline.segments.push(mainPipe);
+
+            // Create realistic fluid visualization
+            createFluidVisualization();
+
+            // Inlet valve (from tank)
+            const inletValve = createValve(0x00FF00, -12, 1.5, 0);
+            addLabel(inletValve.position.clone().add(new THREE.Vector3(0, 1.5, 0)), "Inlet Valve");
+
+            // Outlet valve
+            const outletValve = createValve(0xFF0000, 12, 1.5, 0);
+            addLabel(outletValve.position.clone().add(new THREE.Vector3(0, 1.5, 0)), "Outlet Valve");
+
+            // Pressure sensors with improved visuals
+            const inletSensor = createSensor(-8, 1.5, 0);
+            addLabel(inletSensor.position.clone().add(new THREE.Vector3(0, 1, 0)), "Inlet Sensor");
+
+            const outletSensor = createSensor(8, 1.5, 0);
+            addLabel(outletSensor.position.clone().add(new THREE.Vector3(0, 1, 0)), "Outlet Sensor");
+
+            // Enhanced control unit
+            const controlUnit = createControlUnit(0, 1, -5);
+            addLabel(controlUnit.position.clone().add(new THREE.Vector3(0, 1.5, 0)), "Control Unit");
+
+            // Create oil flow visualization
+            createOilFlow();
+        }
+
+        // Create realistic fluid visualization inside pipe
+        function createFluidVisualization() {
+            // Fluid material with improved texture
+            pipeline.oilTexture.wrapS = pipeline.oilTexture.wrapT = THREE.RepeatWrapping;
+            pipeline.oilTexture.offset.set(0, 0);
+            pipeline.oilTexture.repeat.set(1, 2);
+            
+            const fluidMaterial = new THREE.MeshStandardMaterial({
+                map: pipeline.oilTexture,
+                color: 0x1a3d7a,
+                metalness: 0.3,
+                roughness: 0.1,
+                transparent: true,
+                opacity: 0.9,
+                side: THREE.DoubleSide
+            });
+
+            // Fluid geometry (slightly smaller than pipe)
+            const fluidGeometry = new THREE.CylinderGeometry(0.75, 0.75, 29.8, 32);
+            const fluid = new THREE.Mesh(fluidGeometry, fluidMaterial);
+            fluid.rotation.z = Math.PI/2;
+            fluid.position.set(0, 1.5, 0);
+            scene.add(fluid);
+
+            // Animate texture for flowing effect
+            function animateFluid() {
+                pipeline.oilTexture.offset.x -= 0.01 * pipeline.oilFlowRate;
+                requestAnimationFrame(animateFluid);
+            }
+            animateFluid();
+        }
+
+        function createValve(color, x, y, z) {
+            const valveGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
+            const valveMaterial = new THREE.MeshStandardMaterial({ 
+                color,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            const valve = new THREE.Mesh(valveGeometry, valveMaterial);
+            valve.position.set(x, y, z);
+            valve.castShadow = true;
+            
+            // Valve handle
+            const handleGeometry = new THREE.BoxGeometry(0.2, 0.6, 0.8);
+            const handle = new THREE.Mesh(handleGeometry, new THREE.MeshStandardMaterial({
+                color: 0x333333
+            }));
+            handle.position.set(x, y + 0.3, z);
+            handle.rotation.z = Math.PI/4;
+            scene.add(handle);
+            
+            scene.add(valve);
+            return valve;
+        }
+
+        function createSensor(x, y, z) {
+            const sensorGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.6, 16);
+            const sensorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x0000FF,
+                emissive: 0x0000FF,
+                emissiveIntensity: 0.3,
+                metalness: 0.7,
+                roughness: 0.3
+            });
+            const sensor = new THREE.Mesh(sensorGeometry, sensorMaterial);
+            sensor.position.set(x, y, z);
+            sensor.rotation.x = Math.PI/2;
+            sensor.castShadow = true;
+            
+            // Sensor top
+            const topGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+            const topMaterial = new THREE.MeshStandardMaterial({
+                color: 0x111166,
+                emissive: 0x0000AA,
+                emissiveIntensity: 0.5
+            });
+            const top = new THREE.Mesh(topGeometry, topMaterial);
+            top.position.set(x, y + 0.31, z);
+            top.rotation.x = Math.PI/2;
+            scene.add(top);
+            
+            scene.add(sensor);
+            return sensor;
+        }
+
+        function createControlUnit(x, y, z) {
+            const baseGeometry = new THREE.BoxGeometry(3, 2, 2);
+            const baseMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                metalness: 0.5,
+                roughness: 0.5
+            });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.set(x, y, z);
+            base.castShadow = true;
+
+            const panelGeometry = new THREE.BoxGeometry(2.8, 1.5, 1.8);
+            const panelMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x444444,
+                emissive: 0x111111,
+                emissiveIntensity: 0.2
+            });
+            const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+            panel.position.set(x, y + 0.25, z);
+
+            // Add screen with animated display
+            const screenGeometry = new THREE.PlaneGeometry(2, 1);
+            const screenCanvas = document.createElement('canvas');
+            screenCanvas.width = 512;
+            screenCanvas.height = 256;
+            const screenContext = screenCanvas.getContext('2d');
+            
+            function updateScreen() {
+                screenContext.fillStyle = '#003300';
+                screenContext.fillRect(0, 0, screenCanvas.width, screenCanvas.height);
+                
+                // Draw pressure graph
+                screenContext.strokeStyle = '#00FF00';
+                screenContext.lineWidth = 2;
+                screenContext.beginPath();
+                
+                const maxPressure = 120;
+                const steps = 20;
+                const stepWidth = screenCanvas.width / steps;
+                
+                for (let i = 0; i < steps; i++) {
+                    const x = i * stepWidth;
+                    const pressureValue = pipeline.inletPressure - (i / steps * 10) + (Math.random() * 2);
+                    const y = screenCanvas.height - (pressureValue / maxPressure * screenCanvas.height);
+                    
+                    if (i === 0) {
+                        screenContext.moveTo(x, y);
+                    } else {
+                        screenContext.lineTo(x, y);
+                    }
+                }
+                
+                screenContext.stroke();
+                
+                // Add text labels
+                screenContext.fillStyle = '#00FF00';
+                screenContext.font = '14px Arial';
+                screenContext.fillText('Pressure Monitor', 10, 20);
+                screenContext.fillText(`In: ${pipeline.inletPressure.toFixed(1)} psi`, 10, 40);
+                screenContext.fillText(`Out: ${pipeline.outletPressure.toFixed(1)} psi`, 10, 60);
+                
+                if (pipeline.isLeaking) {
+                    screenContext.fillStyle = '#FF0000';
+                    screenContext.font = 'bold 16px Arial';
+                    screenContext.fillText('LEAK DETECTED!', 150, 40);
+                }
+                
+                screenTexture.needsUpdate = true;
+                requestAnimationFrame(updateScreen);
+            }
+            
+            const screenTexture = new THREE.CanvasTexture(screenCanvas);
+            const screenMaterial = new THREE.MeshStandardMaterial({ 
+                map: screenTexture,
+                emissive: 0x00AA00,
+                emissiveIntensity: 0.3
+            });
+            const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+            screen.position.set(x, y + 0.5, z - 0.91);
+            screen.rotation.y = Math.PI;
+
+            // Add buttons
+            const buttonGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16);
+            const buttonMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000 });
+            
+            for (let i = 0; i < 3; i++) {
+                const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
+                button.position.set(x - 0.8 + i * 0.3, y + 0.2, z - 0.91);
+                button.rotation.x = Math.PI/2;
+                scene.add(button);
+            }
+
+            scene.add(base, panel, screen);
+            updateScreen();
+            return base;
+        }
+
+        function addLabel(position, text) {
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.textContent = text;
+            label.style.transform = 'translate(-50%, -50%)';
+            document.body.appendChild(label);
+
+            function updatePosition() {
+                const vector = position.clone().project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+                label.style.left = `${x}px`;
+                label.style.top = `${y}px`;
+                
+                // Hide label if it's behind the object
+                const distance = camera.position.distanceTo(position);
+                label.style.display = distance < 30 ? 'block' : 'none';
+            }
+
+            label._updateFunc = updatePosition;
+            window.addEventListener('resize', updatePosition);
+            return { update: updatePosition };
+        }
+
+        // Realistic oil flow using particles
+        function createOilFlow() {
+            const oilGeometry = new THREE.SphereGeometry(0.15, 12, 12);
+            const oilMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a3d7a,
+                roughness: 0.1,
+                metalness: 0.8,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            for (let i = 0; i < 150; i++) {
+                const oil = new THREE.Mesh(oilGeometry, oilMaterial);
+                oil.visible = false;
+                oil.castShadow = true;
+                scene.add(oil);
+                pipeline.oilParticles.push(oil);
+            }
+        }
+
+        // Animate oil flow through pipeline
+        function animateOilFlow() {
+            pipeline.oilParticles.forEach((particle, i) => {
+                if (!pipeline.isLeaking || Math.random() > 0.3) {
+                    const progress = ((Date.now() * 0.001 * pipeline.oilFlowRate) + (i * 0.005)) % 1;
+                    
+                    if (progress < 0.95) {
+                        particle.visible = true;
+                        const x = -15 + progress * 30;
+                        particle.position.set(x, 1.5, 0);
+                        
+                        // Leak effect
+                        if (pipeline.isLeaking && Math.abs(x - pipeline.leakPosition) < 0.8) {
+                            if (Math.random() > 0.7) {
+                                particle.position.y = 1.5 - (1 - Math.random()) * 3;
+                                particle.position.z = (Math.random() - 0.5) * 3;
+                            }
+                        }
+                    } else {
+                        particle.visible = false;
+                    }
+                }
+            });
+        }
+
+        // Update pressure readings based on system state
+        function updatePressureReadings() {
+            let inlet = 100;
+            let outlet = 98;
+            
+            if (pipeline.isLeaking) {
+                const leakFactor = 0.5 + Math.random() * 0.5;
+                inlet = 100 - (8 * leakFactor);
+                outlet = 98 - (15 * leakFactor);
+                
+                document.getElementById('leak-alert').textContent = "⚠️ LEAK DETECTED! PRESSURE DROP";
+                document.getElementById('system-alert').style.display = 'block';
+                
+                // Flash the alert banner
+                const alertBanner = document.getElementById('system-alert');
+                alertBanner.style.animation = 'none';
+                void alertBanner.offsetWidth; // Trigger reflow
+                alertBanner.style.animation = 'pulse 1s infinite';
+            } else {
+                document.getElementById('leak-alert').textContent = "";
+                document.getElementById('system-alert').style.display = 'none';
+            }
+            
+            // Add some random fluctuation
+            pipeline.inletPressure = inlet + (Math.random() - 0.5);
+            pipeline.outletPressure = outlet + (Math.random() - 0.5);
+            
+            // Update display
+            document.getElementById('inlet-pressure').textContent = pipeline.inletPressure.toFixed(1);
+            document.getElementById('outlet-pressure').textContent = pipeline.outletPressure.toFixed(1);
+            document.getElementById('pressure-diff').textContent = 
+                Math.abs(pipeline.inletPressure - pipeline.outletPressure).toFixed(1);
+        }
+
+        // Create leak at random position
+        function createLeak() {
+            if (pipeline.isLeaking) return;
+            
+            pipeline.isLeaking = true;
+            pipeline.leakPosition = -12 + Math.random() * 24;
+            pipeline.oilFlowRate = 0.7;
+            
+            // Visual leak effect
+            const leakGeometry = new THREE.SphereGeometry(0.8, 32, 32);
+            const leakMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFF4500,
+                emissive: 0xFF4500,
+                emissiveIntensity: 0.7,
+                transparent: true,
+                opacity: 0.8
+            });
+            pipeline.leakVisual = new THREE.Mesh(leakGeometry, leakMaterial);
+            pipeline.leakVisual.position.set(pipeline.leakPosition, 0.7, 0);
+            scene.add(pipeline.leakVisual);
+            
+            // Create leak particles
+            createLeakParticles();
+            
+            // Play sound effect
+            playLeakSound();
+        }
+
+        function createLeakParticles() {
+            // Clear any existing leak particles
+            pipeline.leakParticles.forEach(p => scene.remove(p));
+            pipeline.leakParticles = [];
+            
+            const leakOilGeometry = new THREE.SphereGeometry(0.1, 12, 12);
+            const leakOilMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a3d7a,
+                roughness: 0.1,
+                metalness: 0.8
+            });
+            
+            for (let i = 0; i < 50; i++) {
+                const particle = new THREE.Mesh(leakOilGeometry, leakOilMaterial);
+                particle.position.set(
+                    pipeline.leakPosition + (Math.random() - 0.5) * 1,
+                    0.7,
+                    (Math.random() - 0.5) * 1
+                );
+                particle.castShadow = true;
+                scene.add(particle);
+                pipeline.leakParticles.push(particle);
+            }
+        }
+
+        function playLeakSound() {
+            // Create audio context if not exists
+            if (!window.audioContext) {
+                window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            // Create oscillator for hissing sound
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.type = 'bandpass';
+            oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.5);
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 2);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 3);
+        }
+
+        // Fix leak
+        function fixLeak() {
+            if (!pipeline.isLeaking) return;
+            
+            pipeline.isLeaking = false;
+            pipeline.oilFlowRate = 1.0;
+            
+            // Remove visual leak effects
+            if (pipeline.leakVisual) {
+                scene.remove(pipeline.leakVisual);
+                pipeline.leakVisual = null;
+            }
+            
+            // Remove leak particles
+            pipeline.leakParticles.forEach(p => scene.remove(p));
+            pipeline.leakParticles = [];
+            
+            // Play repair sound
+            playRepairSound();
+        }
+
+        function playRepairSound() {
+            if (!window.audioContext) {
+                window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            // Create oscillator for confirmation beep
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+        // GUI controls
+        const gui = new GUI({ container: document.getElementById('controls') });
+        gui.title('Pipeline Controls');
+        
+        const params = {
+            triggerLeak: () => createLeak(),
+            fixLeak: () => fixLeak(),
+            flowRate: 1.0,
+            autoLeak: false
+        };
+        
+        gui.add(params, 'triggerLeak').name('Trigger Leak');
+        gui.add(params, 'fixLeak').name('Fix Leak');
+        gui.add(params, 'flowRate', 0.1, 2).name('Flow Rate').onChange(val => {
+            pipeline.oilFlowRate = val;
+        });
+        gui.add(params, 'autoLeak').name('Auto Leak Test').onChange(val => {
+            if (val) {
+                startAutoLeakTest();
+            } else {
+                stopAutoLeakTest();
+            }
+        });
+
+        // Auto leak test functionality
+        let autoLeakInterval;
+        function startAutoLeakTest() {
+            autoLeakInterval = setInterval(() => {
+                if (!pipeline.isLeaking) {
+                    createLeak();
+                    setTimeout(() => {
+                        if (params.autoLeak) {
+                            fixLeak();
+                        }
+                    }, 5000);
+                }
+            }, 10000);
+        }
+
+        function stopAutoLeakTest() {
+            clearInterval(autoLeakInterval);
+            if (pipeline.isLeaking) {
+                fixLeak();
+            }
+        }
+
+        // Create initial pipeline
+        createPipeline();
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            animateOilFlow();
+            updatePressureReadings();
+            
+            // Animate leak particles if leaking
+            if (pipeline.isLeaking) {
+                pipeline.leakParticles.forEach(particle => {
+                    particle.position.y -= 0.03;
+                    particle.position.z += (Math.random() - 0.5) * 0.08;
+                    
+                    if (particle.position.y < -1) {
+                        particle.position.set(
+                            pipeline.leakPosition + (Math.random() - 0.5) * 1,
+                            0.7,
+                            (Math.random() - 0.5) * 1
+                        );
+                    }
+                });
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+            
+            // Update all labels
+            const labels = document.querySelectorAll('.label');
+            labels.forEach(label => {
+                const updateFunc = label._updateFunc;
+                if (updateFunc) updateFunc();
+            });
+            
+            // Update Tween animations
+            TWEEN.update();
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Add CSS for alert animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { opacity: 0.8; }
+                50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+                100% { opacity: 0.8; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
