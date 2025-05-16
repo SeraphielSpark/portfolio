@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Groundnut Peeling Machine Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        canvas { 
+            display: block;
+             margin-top:150px;
+            padding-top:50px;}
+        #controls { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            background: rgba(255,255,255,0.9); 
+            padding: 15px;
+            border-radius: 5px;
+            width: 300px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+        #monitor {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: rgba(0,0,0,0.8);
+            color: #FFA500;
+            padding: 15px;
+            border-radius: 5px;
+            width: 300px;
+            font-family: 'Courier New', monospace;
+        }
+        .label {
+            position: absolute;
+            color: white;
+            background: transparent ;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f3f3f3;
+            margin-top: 10px;
+        }
+        .progress {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .alert {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls"></div>
+    <div id="monitor">
+        <h3 style="margin-top:0; color: #FFA500;">GROUNDNUT PEELING MACHINE</h3>
+        <div>Machine Speed: <span id="speed-value">0</span> RPM</div>
+        <div>Peeling Efficiency: <span id="efficiency-value">0</span>%</div>
+        <div>Peeled Nuts: <span id="peeled-value">0</span></div>
+        <div>Unpeeled Nuts: <span id="unpeeled-value">0</span></div>
+        <div>Collected Nuts: <span id="collected-value">0</span></div>
+        <div class="progress-bar">
+            <div class="progress" id="peeling-progress"></div>
+        </div>
+    </div>
+    <div class="alert" id="system-alert">WARNING: MOTOR OVERLOAD!</div>
+    <script type="module">
+        // Import required libraries
+        import * as THREE from 'https://cdn.skypack.dev/three@0.128.0';
+        import { OrbitControls } from 'https://cdn.skypack.dev/three@0.128.0/examples/jsm/controls/OrbitControls.js';
+        import { GUI } from 'https://cdn.skypack.dev/lil-gui@0.16';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 7);
+        directionalLight.castShadow = true;
+        scene.add(ambientLight, directionalLight);
+
+        // OrbitControls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        camera.position.set(0, 2, 5);
+        controls.update();
+
+        // Groundnut Peeling Machine
+        const peeler = {
+            machine: null,
+            drum: null,
+            motor: null,
+            nuts: [],
+            peeledNuts: 0,
+            unpeeledNuts: 0,
+            collectedNuts: 0,
+            isRunning: false,
+            currentSpeed: 0,
+            targetSpeed: 0,
+            maxSpeed: 60,
+            efficiency: 0,
+            particles: [],
+            bucket: null,
+            outputChute: null,
+            collectingNuts: [] // Array to track nuts being collected
+        };
+
+        // Create machine components
+        function createPeelingMachine() {
+            // Machine frame
+            const frameGeometry = new THREE.BoxGeometry(3, 1, 2);
+            const frameMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                metalness: 0.7,
+                roughness: 0.5
+            });
+            peeler.machine = new THREE.Mesh(frameGeometry, frameMaterial);
+            peeler.machine.position.set(0, 0.5, 0);
+            peeler.machine.castShadow = true;
+            scene.add(peeler.machine);
+            addLabel(peeler.machine.position.clone().add(new THREE.Vector3(0, 1, 0)), "Peeling Machine");
+
+            // Peeling drum
+            const drumGeometry = new THREE.CylinderGeometry(1, 1, 1.5, 32);
+            const drumMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x888888,
+                metalness: 0.8,
+                roughness: 0.4
+            });
+            peeler.drum = new THREE.Mesh(drumGeometry, drumMaterial);
+            peeler.drum.position.set(0, 1.25, 0);
+            peeler.drum.rotation.x = Math.PI/2;
+            peeler.drum.castShadow = true;
+            scene.add(peeler.drum);
+
+            // Motor housing
+            const motorGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.8, 32);
+            const motorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x0066cc,
+                metalness: 0.9,
+                roughness: 0.3
+            });
+            peeler.motor = new THREE.Mesh(motorGeometry, motorMaterial);
+            peeler.motor.position.set(-1.5, 1.25, 0);
+            peeler.motor.rotation.x = Math.PI/2;
+            peeler.motor.castShadow = true;
+            scene.add(peeler.motor);
+            addLabel(peeler.motor.position.clone().add(new THREE.Vector3(0, 0.6, 0)), "Motor");
+
+            // Input hopper
+            createHopper();
+
+            // Output chute
+            createChute();
+
+            // Create collection bucket
+            createBucket();
+
+            // Create groundnuts
+            createGroundnuts();
+
+            // Create shell particles
+            createShellParticles();
+        }
+
+        function createHopper() {
+            const hopperGeometry = new THREE.ConeGeometry(1, 1, 4);
+            const hopperMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xCCCCCC,
+                metalness: 0.5,
+                roughness: 0.6,
+                transparent: true,
+                opacity: 0.7
+            });
+            const hopper = new THREE.Mesh(hopperGeometry, hopperMaterial);
+            hopper.position.set(0, 2.5, 0.8);
+            hopper.rotation.x = Math.PI;
+            scene.add(hopper);
+            addLabel(hopper.position.clone().add(new THREE.Vector3(0, 0.6, 0)), "Input Hopper");
+        }
+
+        function createChute() {
+            const chuteGeometry = new THREE.BoxGeometry(1.5, 0.5, 1);
+            const chuteMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xAAAAAA,
+                metalness: 0.6,
+                roughness: 0.4
+            });
+            peeler.outputChute = new THREE.Mesh(chuteGeometry, chuteMaterial);
+            peeler.outputChute.position.set(0, 0.5, -1.5);
+            peeler.outputChute.rotation.z = -Math.PI/6;
+            scene.add(peeler.outputChute);
+            addLabel(peeler.outputChute.position.clone().add(new THREE.Vector3(0, 0.5, -0.5)), "Output Chute");
+        }
+
+        function createBucket() {
+            // Bucket base
+            const bucketGeometry = new THREE.CylinderGeometry(0.7, 0.6, 0.8, 32);
+            const bucketMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4682B4,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            peeler.bucket = new THREE.Mesh(bucketGeometry, bucketMaterial);
+            peeler.bucket.position.set(0, 0.1, -2.5);
+            peeler.bucket.castShadow = true;
+            scene.add(peeler.bucket);
+            addLabel(peeler.bucket.position.clone().add(new THREE.Vector3(0, 0.8, 0)), "Collection Bucket");
+        }
+
+        function createGroundnuts() {
+            const nutGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+            const shellGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+            
+            const nutMaterial = new THREE.MeshStandardMaterial({
+                color: 0xC19A6B,
+                roughness: 0.7
+            });
+            
+            const shellMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                roughness: 0.9,
+                transparent: true,
+                opacity: 1
+            });
+            
+            // Create multiple nuts in the drum
+            for (let i = 0; i < 10000; i++) {
+                const shell = new THREE.Mesh(shellGeometry, shellMaterial);
+                const nut = new THREE.Mesh(nutGeometry, nutMaterial);
+                
+                // Position randomly in drum
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 0.8;
+                const height = -0.5 + Math.random() * 1;
+                
+                shell.position.set(
+                    Math.cos(angle) * radius,
+                    height,
+                    Math.sin(angle) * radius
+                );
+                
+                nut.position.copy(shell.position);
+                
+                peeler.drum.add(shell, nut);
+                peeler.nuts.push({shell, nut, peeled: false, collected: false});
+                peeler.unpeeledNuts++;
+            }
+            
+            // Update counters
+            document.getElementById('unpeeled-value').textContent = peeler.unpeeledNuts;
+            document.getElementById('peeled-value').textContent = peeler.peeledNuts;
+            document.getElementById('collected-value').textContent = peeler.collectedNuts;
+        }
+
+        function createShellParticles() {
+            const particleGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+            const particleMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                roughness: 0.9
+            });
+            
+            // Create particles for shell fragments
+            for (let i = 0; i < 100; i++) {
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                particle.visible = false;
+                scene.add(particle);
+                peeler.particles.push(particle);
+            }
+        }
+
+        function addLabel(position, text) {
+            const label = document.createElement('div');
+            label.className = 'label';
+            label.textContent = text;
+            label.style.transform = 'translate(-50%, -50%)';
+            document.body.appendChild(label);
+
+            function updatePosition() {
+                const vector = position.clone().project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+                label.style.left = `${x}px`;
+                label.style.top = `${y}px`;
+                
+                // Hide label if it's behind the object or too far
+                const distance = camera.position.distanceTo(position);
+                label.style.display = distance < 10 ? 'block' : 'none';
+            }
+
+            label._updateFunc = updatePosition;
+            window.addEventListener('resize', updatePosition);
+            return { update: updatePosition };
+        }
+
+        // Peeling process simulation
+        function updatePeelingProcess() {
+            if (!peeler.isRunning) return;
+            
+            // Gradually adjust speed to target
+            peeler.currentSpeed = THREE.MathUtils.lerp(peeler.currentSpeed, peeler.targetSpeed, 0.05);
+            
+            // Rotate drum based on speed
+            peeler.drum.rotation.z += peeler.currentSpeed * 0.001;
+            
+            // Calculate peeling efficiency based on speed (optimal around 30-40 RPM)
+            const optimalSpeed = 35;
+            const speedDiff = Math.abs(peeler.currentSpeed - optimalSpeed);
+            peeler.efficiency = Math.max(0, 100 - speedDiff * 2);
+            
+            // Update groundnuts
+            updateGroundnuts();
+            
+            // Update collecting nuts
+            updateCollectingNuts();
+            
+            // Update display
+            document.getElementById('speed-value').textContent = peeler.currentSpeed.toFixed(0);
+            document.getElementById('efficiency-value').textContent = peeler.efficiency.toFixed(1);
+            document.getElementById('peeling-progress').style.width = 
+                `${(peeler.peeledNuts / (peeler.peeledNuts + peeler.unpeeledNuts)) * 100}%`;
+            
+            // Check for motor overload
+            if (peeler.currentSpeed > peeler.maxSpeed * 0.9) {
+                document.getElementById('system-alert').style.display = 'block';
+            } else {
+                document.getElementById('system-alert').style.display = 'none';
+            }
+        }
+
+        function updateGroundnuts() {
+            peeler.nuts.forEach((nut, i) => {
+                if (!nut.peeled && !nut.collected) {
+                    // Move nuts in drum
+                    nut.shell.position.x = Math.cos(peeler.drum.rotation.z * 2 + i) * 0.8;
+                    nut.shell.position.z = Math.sin(peeler.drum.rotation.z * 2 + i) * 0.8;
+                    nut.nut.position.copy(nut.shell.position);
+                    
+                    // Peeling chance based on speed and efficiency
+                    if (Math.random() < peeler.currentSpeed * 0.0005) {
+                        // Peeling happens
+                        if (Math.random() * 100 < peeler.efficiency) {
+                            // Successful peel
+                            nut.peeled = true;
+                            nut.shell.material.opacity = 0;
+                            peeler.peeledNuts++;
+                            peeler.unpeeledNuts--;
+                            
+                            // Create shell fragments
+                            createShellFragments(nut.shell.position);
+                        }
+                    }
+                } else if (nut.peeled && !nut.collected) {
+                    // Already peeled nuts fall to bottom
+                    nut.nut.position.y = Math.max(-0.7, nut.nut.position.y - 0.01);
+                    
+                    // Check if nut has reached the bottom of the drum
+                    if (nut.nut.position.y <= -0.7) {
+                        // Remove from drum and add to collecting array
+                        peeler.drum.remove(nut.nut);
+                        peeler.drum.remove(nut.shell);
+                        
+                        // Set initial position at the start of the chute
+                        nut.nut.position.set(0, 0.2, -1.3);
+                        scene.add(nut.nut);
+                        
+                        // Add to collecting array
+                        peeler.collectingNuts.push({
+                            mesh: nut.nut,
+                            position: new THREE.Vector3(0, 0.2, -1.3),
+                            targetPosition: new THREE.Vector3(
+                                0, 
+                                0.1, 
+                                -2.3 + Math.random() * 0.4 - 0.2 // Random position in bucket
+                            ),
+                            progress: 0
+                        });
+                        
+                        nut.collected = true;
+                    }
+                }
+            });
+            
+            // Update counters
+            document.getElementById('unpeeled-value').textContent = peeler.unpeeledNuts;
+            document.getElementById('peeled-value').textContent = peeler.peeledNuts;
+        }
+
+        function updateCollectingNuts() {
+            for (let i = peeler.collectingNuts.length - 1; i >= 0; i--) {
+                const collectingNut = peeler.collectingNuts[i];
+                collectingNut.progress += 0.01;
+                
+                // Update position along the chute
+                collectingNut.mesh.position.lerpVectors(
+                    collectingNut.position,
+                    collectingNut.targetPosition,
+                    collectingNut.progress
+                );
+                
+                // When nut reaches the bucket
+                if (collectingNut.progress >= 1) {
+                    scene.remove(collectingNut.mesh);
+                    peeler.collectingNuts.splice(i, 1);
+                    peeler.collectedNuts++;
+                    document.getElementById('collected-value').textContent = peeler.collectedNuts;
+                }
+            }
+        }
+
+        function createShellFragments(position) {
+            // Find available particles
+            const availableParticles = peeler.particles.filter(p => !p.visible);
+            
+            // Use up to 5 particles per shell
+            const particlesToUse = Math.min(5, availableParticles.length);
+            
+            for (let i = 0; i < particlesToUse; i++) {
+                const particle = availableParticles[i];
+                particle.position.copy(position);
+                particle.visible = true;
+                
+                // Random velocity
+                particle.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.1,
+                    Math.random() * 0.05,
+                    (Math.random() - 0.5) * 0.1
+                );
+                
+                // Lifetime
+                particle.userData.lifetime = 100 + Math.random() * 50;
+            }
+        }
+
+        function updateParticles() {
+            peeler.particles.forEach(particle => {
+                if (particle.visible) {
+                    // Update position
+                    particle.position.add(particle.userData.velocity);
+                    
+                    // Apply gravity
+                    particle.userData.velocity.y -= 0.001;
+                    
+                    // Reduce lifetime
+                    particle.userData.lifetime--;
+                    
+                    // Remove when lifetime expires
+                    if (particle.userData.lifetime <= 0) {
+                        particle.visible = false;
+                    }
+                }
+            });
+        }
+
+        // GUI controls
+        const gui = new GUI({ container: document.getElementById('controls') });
+        gui.title('Machine Controls');
+        
+        const params = {
+            start: () => {
+                peeler.isRunning = true;
+                peeler.targetSpeed = 30;
+            },
+            stop: () => {
+                peeler.targetSpeed = 0;
+                setTimeout(() => { peeler.isRunning = false; }, 1000);
+            },
+            speed: 30,
+            reset: () => {
+                peeler.isRunning = false;
+                peeler.currentSpeed = 0;
+                peeler.targetSpeed = 0;
+                peeler.drum.rotation.z = 0;
+                
+                // Remove all collecting nuts
+                peeler.collectingNuts.forEach(nut => {
+                    scene.remove(nut.mesh);
+                });
+                peeler.collectingNuts = [];
+                
+                // Reset nuts
+                peeler.nuts.forEach(nut => {
+                    nut.peeled = false;
+                    nut.collected = false;
+                    nut.shell.material.opacity = 1;
+                    
+                    // Remove from scene if they were in collection
+                    if (nut.nut.parent !== peeler.drum) {
+                        scene.remove(nut.nut);
+                        peeler.drum.add(nut.nut);
+                    }
+                    if (nut.shell.parent !== peeler.drum) {
+                        scene.remove(nut.shell);
+                        peeler.drum.add(nut.shell);
+                    }
+                    
+                    // Random position in drum
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * 0.8;
+                    const height = -0.5 + Math.random() * 1;
+                    
+                    nut.shell.position.set(
+                        Math.cos(angle) * radius,
+                        height,
+                        Math.sin(angle) * radius
+                    );
+                    nut.nut.position.copy(nut.shell.position);
+                });
+                
+                // Reset counters
+                peeler.peeledNuts = 0;
+                peeler.unpeeledNuts = peeler.nuts.length;
+                peeler.collectedNuts = 0;
+                
+                // Update display
+                document.getElementById('speed-value').textContent = "0";
+                document.getElementById('efficiency-value').textContent = "0";
+                document.getElementById('peeled-value').textContent = "0";
+                document.getElementById('unpeeled-value').textContent = peeler.unpeeledNuts;
+                document.getElementById('collected-value').textContent = "0";
+                document.getElementById('peeling-progress').style.width = "0%";
+                document.getElementById('system-alert').style.display = 'none';
+                
+                // Hide all particles
+                peeler.particles.forEach(p => p.visible = false);
+            }
+        };
+        
+        gui.add(params, 'start').name('Start Machine');
+        gui.add(params, 'stop').name('Stop Machine');
+        gui.add(params, 'speed', 10, 60, 5).name('Speed (RPM)').onChange(val => {
+            peeler.targetSpeed = val;
+        });
+        gui.add(params, 'reset').name('Reset Machine');
+
+        // Create initial machine
+        createPeelingMachine();
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updatePeelingProcess();
+            updateParticles();
+            controls.update();
+            renderer.render(scene, camera);
+            
+            // Update all labels
+            const labels = document.querySelectorAll('.label');
+            labels.forEach(label => {
+                const updateFunc = label._updateFunc;
+                if (updateFunc) updateFunc();
+            });
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
