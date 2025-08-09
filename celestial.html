@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Celestial Astrology</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #0c0c2e 0%, #1a1a3e 50%, #2d1b69 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Animated stars background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 60px 0;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #ffd700, #ffb347, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #b8b8ff;
+            margin-bottom: 40px;
+            animation: slideIn 1s ease-out 0.5s both;
+        }
+
+        .intro-text {
+            max-width: 800px;
+            margin: 0 auto 60px;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #e0e0ff;
+            text-align: center;
+            animation: fadeInUp 1s ease-out 1s both;
+        }
+
+        .zodiac-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeInUp 1s ease-out 1.5s both;
+        }
+
+        .zodiac-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .zodiac-header h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .zodiac-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .zodiac-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .zodiac-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.1), transparent);
+            transform: rotate(45deg);
+            transition: all 0.6s ease;
+            opacity: 0;
+        }
+
+        .zodiac-card:hover::before {
+            opacity: 1;
+            animation: shimmer 1.5s ease-in-out;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .zodiac-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+        }
+
+        .zodiac-symbol {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            display: block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .zodiac-name {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffd700;
+            margin-bottom: 8px;
+        }
+
+        .zodiac-dates {
+            color: #b8b8ff;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .zodiac-description {
+            color: #e0e0ff;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .animated-bar {
+            height: 6px;
+            background: linear-gradient(90deg, #ff6b6b, #ffd700, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7);
+            background-size: 300% 100%;
+            animation: gradientShift 4s ease-in-out infinite;
+            border-radius: 3px;
+            margin: 40px 0;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .astrology-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin: 60px 0;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s ease;
+            animation: fadeInUp 1s ease-out 2s both;
+        }
+
+        .info-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-card h3 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.8rem;
+            color: #ffd700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-card p {
+            line-height: 1.7;
+            color: #e0e0ff;
+        }
+
+        .floating-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .floating-symbol {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0.1;
+            animation: floatAround 20s linear infinite;
+        }
+
+        @keyframes floatAround {
+            0% { transform: translateY(100vh) rotate(0deg); }
+            100% { transform: translateY(-100px) rotate(360deg); }
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 60px;
+            animation: fadeInUp 1s ease-out 2.5s both;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+            .zodiac-grid { grid-template-columns: 1fr; }
+            .astrology-info { grid-template-columns: 1fr; }
+            .container { padding: 0 15px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated stars background -->
+    <div class="stars" id="stars"></div>
+    
+    <!-- Floating zodiac symbols -->
+    <div class="floating-elements" id="floatingElements"></div>
+
+    <div class="container">
+        <header>
+            <h1>✨ Celestial Astrology ✨</h1>
+            <p class="subtitle">Discover the Mysteries of the Stars</p>
+            <div class="intro-text">
+                Welcome to the enchanting world of astrology, where celestial bodies dance across the cosmos to reveal the secrets of your personality, destiny, and soul's journey. For thousands of years, humans have looked to the stars for guidance, finding wisdom in the ancient art of reading the heavens.
+            </div>
+        </header>
+
+        <div class="animated-bar"></div>
+
+        <div class="zodiac-container">
+            <div class="zodiac-header">
+                <h2>The Twelve Zodiac Signs</h2>
+                <p>Each sign carries unique energies and characteristics influenced by celestial movements</p>
+            </div>
+
+            <div class="zodiac-grid" id="zodiacGrid">
+                <!-- Zodiac cards will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <div class="animated-bar"></div>
+
+        <div class="astrology-info">
+            <div class="info-card">
+                <h3>🌟 What is Astrology?</h3>
+                <p>Astrology is the ancient practice of interpreting the positions and movements of celestial bodies to understand their influence on human affairs and natural phenomena. It's a symbolic language that connects the macrocosm of the universe with the microcosm of individual experience, offering insights into personality traits, relationships, and life patterns.</p>
+            </div>
+
+            <div class="info-card">
+                <h3>🌙 The Power of Birth Charts</h3>
+                <p>Your birth chart is a snapshot of the sky at the exact moment you were born. It reveals the positions of the sun, moon, and planets in the zodiac signs and houses, creating a unique cosmic fingerprint that influences your personality, strengths, challenges, and life path. Each element tells a story about different aspects of your being.</p>
+            </div>
+
+            <div class="info-card">
+                <h3>⭐ Elements and Modalities</h3>
+                <p>The zodiac signs are grouped into four elements (Fire, Earth, Air, Water) and three modalities (Cardinal, Fixed, Mutable). Fire signs are passionate and dynamic, Earth signs are practical and grounded, Air signs are intellectual and communicative, while Water signs are emotional and intuitive. These combinations create the rich tapestry of astrological interpretation.</p>
+            </div>
+
+            <div class="info-card">
+                <h3>🔮 Planetary Influences</h3>
+                <p>Each planet governs different aspects of life and personality. The Sun represents your core identity, the Moon your emotions and instincts, Mercury your communication style, Venus your approach to love and beauty, Mars your drive and ambition, and the outer planets influence generational themes and deeper transformations in your life journey.</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>✨ May the stars guide your path and illuminate your journey ✨</p>
+        </footer>
+    </div>
+
+    <script>
+        // Zodiac signs data
+        const zodiacSigns = [
+            { name: 'Aries', symbol: '♈', dates: 'March 21 - April 19', description: 'Bold, ambitious, and energetic. Natural leaders who embrace challenges with courage and determination.' },
+            { name: 'Taurus', symbol: '♉', dates: 'April 20 - May 20', description: 'Reliable, patient, and practical. Earth sign that values stability, comfort, and the finer things in life.' },
+            { name: 'Gemini', symbol: '♊', dates: 'May 21 - June 20', description: 'Curious, adaptable, and communicative. Quick-witted air sign that thrives on variety and intellectual stimulation.' },
+            { name: 'Cancer', symbol: '♋', dates: 'June 21 - July 22', description: 'Nurturing, intuitive, and protective. Water sign deeply connected to emotions, family, and home.' },
+            { name: 'Leo', symbol: '♌', dates: 'July 23 - August 22', description: 'Confident, generous, and dramatic. Fire sign that loves to shine and inspire others with natural charisma.' },
+            { name: 'Virgo', symbol: '♍', dates: 'August 23 - September 22', description: 'Analytical, helpful, and perfectionist. Earth sign dedicated to service, health, and attention to detail.' },
+            { name: 'Libra', symbol: '♎', dates: 'September 23 - October 22', description: 'Diplomatic, charming, and balanced. Air sign that seeks harmony, beauty, and justice in all relationships.' },
+            { name: 'Scorpio', symbol: '♏', dates: 'October 23 - November 21', description: 'Intense, mysterious, and transformative. Water sign with deep emotional depth and powerful intuition.' },
+            { name: 'Sagittarius', symbol: '♐', dates: 'November 22 - December 21', description: 'Adventurous, optimistic, and philosophical. Fire sign that seeks truth, freedom, and higher knowledge.' },
+            { name: 'Capricorn', symbol: '♑', dates: 'December 22 - January 19', description: 'Ambitious, disciplined, and responsible. Earth sign focused on achievement, structure, and long-term goals.' },
+            { name: 'Aquarius', symbol: '♒', dates: 'January 20 - February 18', description: 'Independent, innovative, and humanitarian. Air sign that values originality, friendship, and social progress.' },
+            { name: 'Pisces', symbol: '♓', dates: 'February 19 - March 20', description: 'Compassionate, artistic, and intuitive. Water sign deeply connected to dreams, spirituality, and creativity.' }
+        ];
+
+        // Create zodiac cards
+        function createZodiacCards() {
+            const grid = document.getElementById('zodiacGrid');
+            zodiacSigns.forEach((sign, index) => {
+                const card = document.createElement('div');
+                card.className = 'zodiac-card';
+                card.style.animationDelay = `${index * 0.1}s`;
+                card.innerHTML = `
+                    <span class="zodiac-symbol">${sign.symbol}</span>
+                    <div class="zodiac-name">${sign.name}</div>
+                    <div class="zodiac-dates">${sign.dates}</div>
+                    <div class="zodiac-description">${sign.description}</div>
+                `;
+                
+                // Add click animation
+                card.addEventListener('click', function() {
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        this.style.transform = 'translateY(-10px) scale(1.02)';
+                    }, 150);
+                });
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Create animated stars
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Create floating zodiac symbols
+        function createFloatingElements() {
+            const container = document.getElementById('floatingElements');
+            const symbols = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '✨', '🌟', '🌙'];
+            
+            for (let i = 0; i < 15; i++) {
+                const element = document.createElement('div');
+                element.className = 'floating-symbol';
+                element.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+                element.style.left = Math.random() * 100 + '%';
+                element.style.animationDelay = Math.random() * 20 + 's';
+                element.style.animationDuration = (15 + Math.random() * 10) + 's';
+                container.appendChild(element);
+            }
+        }
+
+        // Add scroll animations
+        function addScrollAnimations() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+
+            document.querySelectorAll('.zodiac-card, .info-card').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            createStars();
+            createZodiacCards();
+            createFloatingElements();
+            addScrollAnimations();
+        });
+
+        // Add parallax effect to floating elements
+        window.addEventListener('scroll', function() {
+            const scrolled = window.pageYOffset;
+            const parallax = document.querySelectorAll('.floating-symbol');
+            const speed = 0.5;
+
+            parallax.forEach(element => {
+                const yPos = -(scrolled * speed);
+                element.style.transform = `translateY(${yPos}px)`;
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96cabeed914dbc04',t:'MTc1NDc3OTEyOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
